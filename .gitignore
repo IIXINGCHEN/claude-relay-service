@@ -1,5 +1,5 @@
 # fork add
-docs/
+# docs/  # Keep docs folder in version control
 
 # Dependencies
 node_modules/
