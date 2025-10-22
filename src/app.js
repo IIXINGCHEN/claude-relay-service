@@ -11,6 +11,17 @@ const logger = require('./utils/logger')
 const redis = require('./models/redis')
 const pricingService = require('./services/pricingService')
 const cacheMonitor = require('./utils/cacheMonitor')
+const securityChecker = require('./utils/securityChecker')
+// const streamManager = require('./utils/streamManager') // 临时注释，未使用
+// const encryptionService = require('./services/encryptionService') // 临时注释，未使用
+const { requestLimiter } = require('./middleware/requestLimiter')
+const {
+  errorHandler: globalErrorHandler,
+  notFoundHandler,
+  setupUncaughtExceptionHandler,
+  setupUnhandledRejectionHandler,
+  setupGracefulShutdown
+} = require('./middleware/errorHandler')
 
 // Import routes
 const apiRoutes = require('./routes/api')
@@ -33,7 +44,7 @@ const {
   corsMiddleware,
   requestLogger,
   securityMiddleware,
-  errorHandler,
+  errorHandler: _errorHandler, // 重命名以避免未使用警告
   globalRateLimit,
   requestSizeLimit
 } = require('./middleware/auth')
@@ -79,6 +90,10 @@ class Application {
           `💰 Cost initialization completed: ${result.processed} processed, ${result.errors} errors`
         )
       }
+
+      // 🔒 生产环境安全检查
+      logger.info('🔒 Running security configuration check...')
+      securityChecker.enforceProductionSecurity()
 
       // 🕐 初始化Claude账户会话窗口
       logger.info('🕐 Initializing Claude account session windows...')
@@ -140,7 +155,10 @@ class Application {
         this.app.use(globalRateLimit)
       }
 
-      // 📏 请求大小限制
+      // 📏 新的请求限制中间件（包含大小、参数、头部检查）
+      this.app.use(requestLimiter)
+
+      // 📏 旧的请求大小限制（保留向后兼容）
       this.app.use(requestSizeLimit)
 
       // 📝 请求日志（使用自定义logger而不是morgan）
@@ -372,8 +390,11 @@ class Application {
         })
       })
 
-      // 🚨 错误处理
-      this.app.use(errorHandler)
+      // 🚨 404处理（必须在所有路由之后）
+      this.app.use(notFoundHandler)
+
+      // 🚨 全局错误处理（使用增强的错误处理器）
+      this.app.use(globalErrorHandler)
 
       logger.success('✅ Application initialized successfully')
     } catch (error) {
@@ -460,6 +481,10 @@ class Application {
 
   async start() {
     try {
+      // 设置全局异常处理器
+      setupUncaughtExceptionHandler()
+      setupUnhandledRejectionHandler()
+
       await this.initialize()
 
       this.server = this.app.listen(config.server.port, config.server.host, () => {
@@ -485,8 +510,8 @@ class Application {
       // 🔄 定期清理任务
       this.startCleanupTasks()
 
-      // 🛑 优雅关闭
-      this.setupGracefulShutdown()
+      // 🛑 优雅关闭（使用增强的关闭处理器）
+      setupGracefulShutdown(this.server)
     } catch (error) {
       logger.error('💥 Failed to start server:', error)
       process.exit(1)
@@ -622,6 +647,9 @@ class Application {
     logger.info('🔢 Concurrency cleanup task started (running every 1 minute)')
   }
 
+  // 注意：此方法已被 middleware/errorHandler.js 中的 setupGracefulShutdown 替代
+  // 保留此代码仅供参考
+  /*
   setupGracefulShutdown() {
     const shutdown = async (signal) => {
       logger.info(`🛑 Received ${signal}, starting graceful shutdown...`)
@@ -706,6 +734,7 @@ class Application {
       shutdown('unhandledRejection')
     })
   }
+  */
 }
 
 // 启动应用

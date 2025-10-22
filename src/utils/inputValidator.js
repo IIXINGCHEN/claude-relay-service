@@ -2,6 +2,9 @@
  * 输入验证工具类
  * 提供各种输入验证和清理功能，防止注入攻击
  */
+
+const crypto = require('crypto')
+
 class InputValidator {
   /**
    * 验证用户名
@@ -285,6 +288,266 @@ class InputValidator {
     }
 
     return uuid.toLowerCase()
+  }
+
+  /**
+   * 防止XSS攻击 - HTML实体编码
+   * @param {string} str - 要编码的字符串
+   * @returns {string} 编码后的字符串
+   */
+  escapeHtml(str) {
+    if (!str) {
+      return ''
+    }
+
+    const htmlEscapes = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#x27;',
+      '/': '&#x2F;',
+      '`': '&#x60;',
+      '=': '&#x3D;'
+    }
+
+    return String(str).replace(/[&<>"'`=/]/g, (match) => htmlEscapes[match])
+  }
+
+  /**
+   * 防止SQL注入 - 参数化查询转义
+   * @param {string} str - 要转义的字符串
+   * @returns {string} 转义后的字符串
+   */
+  escapeSql(str) {
+    if (!str) {
+      return ''
+    }
+
+    // 转义单引号
+    return String(str).replace(/'/g, "''")
+  }
+
+  /**
+   * 防止命令注入 - shell命令转义
+   * @param {string} str - 要转义的字符串
+   * @returns {string} 转义后的字符串
+   */
+  escapeShell(str) {
+    if (!str) {
+      return ''
+    }
+
+    // 移除危险字符
+    return String(str).replace(/[`$(){}[\]|&;<>\\!]/g, '')
+  }
+
+  /**
+   * 验证和清理JSON输入
+   * @param {*} data - 要验证的数据
+   * @param {number} maxDepth - 最大嵌套深度
+   * @returns {*} 清理后的数据
+   */
+  sanitizeJson(data, maxDepth = 10) {
+    const seen = new WeakSet()
+
+    const sanitize = (obj, depth = 0) => {
+      if (depth > maxDepth) {
+        throw new Error(`JSON嵌套深度超过限制 (${maxDepth})`)
+      }
+
+      if (obj === null || obj === undefined) {
+        return obj
+      }
+
+      // 处理原始类型
+      if (typeof obj !== 'object') {
+        if (typeof obj === 'string') {
+          // 清理字符串中的控制字符
+          return obj.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // eslint-disable-line no-control-regex
+        }
+        return obj
+      }
+
+      // 检查循环引用
+      if (seen.has(obj)) {
+        throw new Error('检测到循环引用')
+      }
+      seen.add(obj)
+
+      // 处理数组
+      if (Array.isArray(obj)) {
+        return obj.map((item) => sanitize(item, depth + 1))
+      }
+
+      // 处理对象
+      const result = {}
+      for (const [key, value] of Object.entries(obj)) {
+        // 验证键名
+        if (typeof key !== 'string' || key.length > 100) {
+          throw new Error('无效的对象键名')
+        }
+
+        // 清理键名中的危险字符
+        const cleanKey = key.replace(/[^\w.-]/g, '_')
+        result[cleanKey] = sanitize(value, depth + 1)
+      }
+
+      return result
+    }
+
+    return sanitize(data)
+  }
+
+  /**
+   * 验证文件名
+   * @param {string} filename - 文件名
+   * @returns {string} 验证后的文件名
+   */
+  validateFilename(filename) {
+    if (!filename || typeof filename !== 'string') {
+      throw new Error('文件名必须是非空字符串')
+    }
+
+    // 移除路径遍历字符
+    let clean = filename.replace(/\.\./g, '').replace(/[/\\]/g, '').trim()
+
+    // 检查文件名长度
+    if (clean.length === 0 || clean.length > 255) {
+      throw new Error('文件名长度无效')
+    }
+
+    // 移除危险字符
+    clean = clean.replace(/[<>:"|?*\x00-\x1F]/g, '_') // eslint-disable-line no-control-regex
+
+    // 不允许以点开头（隐藏文件）
+    if (clean.startsWith('.')) {
+      clean = `_${clean.substring(1)}`
+    }
+
+    return clean
+  }
+
+  /**
+   * 验证URL参数
+   * @param {Object} params - URL参数对象
+   * @param {Array<string>} allowedKeys - 允许的参数键列表
+   * @returns {Object} 验证后的参数
+   */
+  validateUrlParams(params, allowedKeys = []) {
+    if (!params || typeof params !== 'object') {
+      return {}
+    }
+
+    const validated = {}
+
+    for (const [key, value] of Object.entries(params)) {
+      // 检查键是否在允许列表中
+      if (allowedKeys.length > 0 && !allowedKeys.includes(key)) {
+        continue
+      }
+
+      // 验证键名
+      if (!/^[\w.-]+$/.test(key) || key.length > 50) {
+        continue
+      }
+
+      // 验证值
+      if (value === null || value === undefined) {
+        continue
+      }
+
+      if (Array.isArray(value)) {
+        validated[key] = value.map((v) => this.escapeHtml(String(v)))
+      } else {
+        validated[key] = this.escapeHtml(String(value))
+      }
+    }
+
+    return validated
+  }
+
+  /**
+   * 生成CSRF令牌
+   * @returns {string} CSRF令牌
+   */
+  generateCsrfToken() {
+    return crypto.randomBytes(32).toString('hex')
+  }
+
+  /**
+   * 验证CSRF令牌
+   * @param {string} token - 要验证的令牌
+   * @param {string} expectedToken - 预期的令牌
+   * @returns {boolean} 是否有效
+   */
+  validateCsrfToken(token, expectedToken) {
+    if (!token || !expectedToken) {
+      return false
+    }
+
+    // 使用时间安全比较防止时序攻击
+    return crypto.timingSafeEqual(Buffer.from(token), Buffer.from(expectedToken))
+  }
+
+  /**
+   * 限制字符串长度
+   * @param {string} str - 要限制的字符串
+   * @param {number} maxLength - 最大长度
+   * @returns {string} 截断后的字符串
+   */
+  truncateString(str, maxLength = 1000) {
+    if (!str || typeof str !== 'string') {
+      return ''
+    }
+
+    if (str.length <= maxLength) {
+      return str
+    }
+
+    return `${str.substring(0, maxLength - 3)}...`
+  }
+
+  /**
+   * 验证整数
+   * @param {*} value - 要验证的值
+   * @param {number} min - 最小值
+   * @param {number} max - 最大值
+   * @returns {number} 验证后的整数
+   */
+  validateInteger(value, min = Number.MIN_SAFE_INTEGER, max = Number.MAX_SAFE_INTEGER) {
+    const num = parseInt(value, 10)
+
+    if (isNaN(num)) {
+      throw new Error('值必须是整数')
+    }
+
+    if (num < min || num > max) {
+      throw new Error(`值必须在 ${min} 到 ${max} 之间`)
+    }
+
+    return num
+  }
+
+  /**
+   * 验证浮点数
+   * @param {*} value - 要验证的值
+   * @param {number} min - 最小值
+   * @param {number} max - 最大值
+   * @returns {number} 验证后的浮点数
+   */
+  validateFloat(value, min = -Infinity, max = Infinity) {
+    const num = parseFloat(value)
+
+    if (isNaN(num)) {
+      throw new Error('值必须是数字')
+    }
+
+    if (num < min || num > max) {
+      throw new Error(`值必须在 ${min} 到 ${max} 之间`)
+    }
+
+    return num
   }
 }
 

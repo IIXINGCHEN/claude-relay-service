@@ -304,11 +304,137 @@ export const useAccountsStore = defineStore('accounts', () => {
         await fetchDroidAccounts()
         return response.data
       } else {
-        throw new Error(response.message || '创建Droid账户失败')
+        // 🔍 提取详细错误信息
+        let errorMessage = response.message || '创建Droid账户失败'
+        let errorType = response.error || 'unknown'
+        let errorField = response.field || null
+
+        // 构建友好的错误消息
+        if (errorField) {
+          errorMessage = `${errorMessage}（字段：${errorField}）`
+        }
+
+        if (response.type) {
+          // 根据错误类型添加提示
+          if (response.type === 'business_error') {
+            errorMessage = `业务错误：${errorMessage}`
+          } else if (response.type === 'group_binding_error') {
+            errorMessage = `分组绑定失败：${errorMessage}`
+          }
+        }
+
+        const detailedError = new Error(errorMessage)
+        detailedError.type = errorType
+        detailedError.field = errorField
+        detailedError.details = response.details || null
+        throw detailedError
       }
     } catch (err) {
-      error.value = err.message
-      throw err
+      // 🚨 区分网络错误和业务错误
+      if (err.response) {
+        const { status, data } = err.response
+        let friendlyMessage = data?.message || err.message
+        let errorTitle = ''
+
+        // 根据状态码提供友好提示和标题
+        switch (status) {
+          case 400:
+            errorTitle = '参数错误'
+            friendlyMessage = data?.message || '请检查输入的信息'
+            if (data?.field) {
+              friendlyMessage += `（字段：${data.field}）`
+            }
+            break
+          case 401:
+            errorTitle = '认证失败'
+            friendlyMessage = data?.message || '身份验证失败，请重新登录'
+            break
+          case 402:
+            errorTitle = '需要付费'
+            friendlyMessage = data?.message || '需要付费才能访问此资源'
+            break
+          case 403:
+            errorTitle = '权限不足'
+            friendlyMessage = data?.message || '您没有权限访问此资源'
+            break
+          case 404:
+            errorTitle = '资源不存在'
+            friendlyMessage = data?.message || '请求的资源不存在'
+            break
+          case 408:
+            errorTitle = '请求超时'
+            friendlyMessage = data?.message || '请求超时，请稍后重试'
+            if (data?.suggestions && Array.isArray(data.suggestions)) {
+              friendlyMessage += `\n建议：${data.suggestions.join('；')}`
+            }
+            break
+          case 424:
+            errorTitle = '依赖失败'
+            friendlyMessage = data?.message || '依赖的服务请求失败'
+            if (data?.suggestions && Array.isArray(data.suggestions)) {
+              friendlyMessage += `\n建议：${data.suggestions.join('；')}`
+            }
+            break
+          case 429:
+            errorTitle = '请求频繁'
+            friendlyMessage = data?.message || '请求过于频繁，请稍后再试'
+            break
+          case 500:
+            errorTitle = '服务器内部错误'
+            friendlyMessage = data?.message || '服务器遇到错误，请联系管理员'
+            break
+          case 502:
+            errorTitle = '网关错误'
+            friendlyMessage = data?.message || '无法连接到上游服务'
+            if (data?.suggestions && Array.isArray(data.suggestions)) {
+              friendlyMessage += `\n建议：${data.suggestions.join('；')}`
+            }
+            break
+          case 503:
+            errorTitle = '服务不可用'
+            friendlyMessage = data?.message || '服务暂时不可用，请稍后重试'
+            if (data?.suggestions && Array.isArray(data.suggestions)) {
+              friendlyMessage += `\n建议：${data.suggestions.join('；')}`
+            }
+            break
+          case 504:
+            errorTitle = '网关超时'
+            friendlyMessage = data?.message || '上游服务响应超时'
+            if (data?.suggestions && Array.isArray(data.suggestions)) {
+              friendlyMessage += `\n建议：${data.suggestions.join('；')}`
+            }
+            break
+          default:
+            if (status >= 500) {
+              errorTitle = '服务器错误'
+              friendlyMessage = data?.message || '服务器遇到未知错误'
+            } else if (status >= 400) {
+              errorTitle = '请求错误'
+              friendlyMessage = data?.message || '请求失败'
+            }
+        }
+
+        // 构建完整错误消息
+        const fullMessage = errorTitle ? `${errorTitle}：${friendlyMessage}` : friendlyMessage
+
+        error.value = fullMessage
+        const detailedError = new Error(fullMessage)
+        detailedError.statusCode = status
+        detailedError.type = data?.error || 'http_error'
+        detailedError.details = data?.details || null
+        detailedError.rawData = data
+        throw detailedError
+      } else if (err.request) {
+        // 请求已发送但没有收到响应（网络错误）
+        error.value = '网络连接失败，请检查网络连接或代理设置'
+        const networkError = new Error('网络连接失败，请检查网络连接或代理设置')
+        networkError.type = 'network_error'
+        networkError.details = err.message
+        throw networkError
+      } else {
+        error.value = err.message
+        throw err
+      }
     } finally {
       loading.value = false
     }

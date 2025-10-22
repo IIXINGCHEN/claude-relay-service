@@ -177,7 +177,7 @@
                 </div>
               </th>
               <th
-                class="w-[22%] min-w-[180px] cursor-pointer px-3 py-4 text-left text-xs font-bold uppercase tracking-wider text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-600"
+                class="w-[20%] min-w-[160px] cursor-pointer px-3 py-4 text-left text-xs font-bold uppercase tracking-wider text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-600"
                 @click="sortAccounts('name')"
               >
                 名称
@@ -192,7 +192,7 @@
                 <i v-else class="fas fa-sort ml-1 text-gray-400" />
               </th>
               <th
-                class="w-[15%] min-w-[120px] cursor-pointer px-3 py-4 text-left text-xs font-bold uppercase tracking-wider text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-600"
+                class="w-[20%] min-w-[170px] cursor-pointer px-3 py-4 text-left text-xs font-bold uppercase tracking-wider text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-600"
                 @click="sortAccounts('platform')"
               >
                 平台/类型
@@ -207,7 +207,7 @@
                 <i v-else class="fas fa-sort ml-1 text-gray-400" />
               </th>
               <th
-                class="w-[12%] min-w-[110px] cursor-pointer px-3 py-4 text-left text-xs font-bold uppercase tracking-wider text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-600"
+                class="w-[13%] min-w-[120px] cursor-pointer px-3 py-4 text-left text-xs font-bold uppercase tracking-wider text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-600"
                 @click="sortAccounts('expiresAt')"
               >
                 到期时间
@@ -463,7 +463,7 @@
                   </div>
                 </div>
               </td>
-              <td class="px-3 py-4">
+              <td class="overflow-hidden px-3 py-4">
                 <div class="flex items-center gap-1">
                   <!-- 平台图标和名称 -->
                   <div
@@ -554,23 +554,59 @@
                   </div>
                   <div
                     v-else-if="account.platform === 'droid'"
-                    class="flex items-center gap-1.5 rounded-lg border border-cyan-200 bg-gradient-to-r from-cyan-100 to-sky-100 px-2.5 py-1 dark:border-cyan-700 dark:from-cyan-900/20 dark:to-sky-900/20"
+                    class="flex w-full max-w-full flex-col gap-1.5"
                   >
-                    <i class="fas fa-robot text-xs text-cyan-700 dark:text-cyan-400" />
-                    <span class="text-xs font-semibold text-cyan-800 dark:text-cyan-300"
-                      >Droid</span
-                    >
-                    <span class="mx-1 h-4 w-px bg-cyan-300 dark:bg-cyan-600" />
-                    <span class="text-xs font-medium text-cyan-700 dark:text-cyan-300">
-                      {{ getDroidAuthType(account) }}
-                    </span>
-                    <span
+                    <!-- 第一行：平台标识 + 认证类型 + API Key数量 -->
+                    <div class="flex flex-wrap items-center gap-1.5 rounded-lg border border-cyan-200 bg-gradient-to-r from-cyan-100 to-sky-100 px-2.5 py-1 dark:border-cyan-700 dark:from-cyan-900/20 dark:to-sky-900/20">
+                      <i class="fas fa-robot text-xs text-cyan-700 dark:text-cyan-400" />
+                      <span class="text-xs font-semibold text-cyan-800 dark:text-cyan-300">Droid</span>
+                      <span class="mx-1 h-4 w-px bg-cyan-300 dark:bg-cyan-600" />
+                      <span class="text-xs font-medium text-cyan-700 dark:text-cyan-300">
+                        {{ getDroidAuthType(account) }}
+                      </span>
+                      <span
+                        v-if="isDroidApiKeyMode(account)"
+                        :class="getDroidApiKeyBadgeClasses(account)"
+                      >
+                        <i class="fas fa-key text-[9px]" />
+                        <span>x{{ getDroidApiKeyCount(account) }}</span>
+                      </span>
+                    </div>
+                    <!-- 第二行：余额显示 -->
+                    <div
                       v-if="isDroidApiKeyMode(account)"
-                      :class="getDroidApiKeyBadgeClasses(account)"
+                      class="rounded-lg bg-gray-50 p-2 dark:bg-gray-700"
+                      :title="getDroidBalanceTooltip(account)"
+                      @click.stop="checkDroidBalance(account)"
                     >
-                      <i class="fas fa-key text-[9px]" />
-                      <span>x{{ getDroidApiKeyCount(account) }}</span>
-                    </span>
+                      <div class="flex items-center gap-2">
+                        <span
+                          class="inline-flex min-w-[32px] justify-center rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-medium text-green-600 dark:bg-green-500/20 dark:text-green-300"
+                        >
+                          <i class="fas fa-coins" />
+                        </span>
+                        <div class="flex-1">
+                          <div v-if="droidBalances[account.id]" class="space-y-1">
+                            <div class="flex items-center gap-2">
+                              <div class="h-2 flex-1 rounded-full bg-gray-200 dark:bg-gray-600">
+                                <div class="h-2 rounded-full bg-green-500" style="width: 100%"></div>
+                              </div>
+                              <span class="w-12 text-right text-xs font-semibold text-gray-800 dark:text-gray-100">
+                                {{ formatDroidBalance(droidBalances[account.id]) }}
+                              </span>
+                            </div>
+                            <div class="text-xs text-gray-600 dark:text-gray-400">
+                              点击刷新余额
+                            </div>
+                          </div>
+                          <div v-else class="flex items-center gap-2">
+                            <div class="text-xs font-medium text-gray-700 dark:text-gray-200">
+                              点击查询余额
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                   <div
                     v-else
@@ -3102,6 +3138,102 @@ const getDroidAuthType = (account) => {
 // 判断是否为 API Key 模式的 Droid 账号
 const isDroidApiKeyMode = (account) => getDroidAuthType(account) === 'API Key'
 
+// Droid 余额管理
+const droidBalances = ref({})
+const droidBalanceLoading = ref(new Set())
+
+// 查询 Droid 账户余额
+const checkDroidBalance = async (account) => {
+  if (!account || !account.id) {
+    return
+  }
+
+  const accountId = account.id
+
+  // 防止重复查询
+  if (droidBalanceLoading.value.has(accountId)) {
+    return
+  }
+
+  droidBalanceLoading.value.add(accountId)
+
+  try {
+    const response = await apiClient.get(`/admin/droid-accounts/${accountId}/balance`)
+
+    if (response && response.success) {
+      // 存储余额信息
+      droidBalances.value[accountId] = response.balances
+      showToast('余额查询成功', 'success')
+    } else {
+      showToast('余额查询失败', 'error')
+    }
+  } catch (error) {
+    console.error('Failed to check Droid balance:', error)
+    showToast(error.response?.data?.message || '余额查询失败', 'error')
+  } finally {
+    droidBalanceLoading.value.delete(accountId)
+  }
+}
+
+// 格式化 Droid 余额显示
+const formatDroidBalance = (balances) => {
+  if (!balances || !Array.isArray(balances) || balances.length === 0) {
+    return 'N/A'
+  }
+
+  // 计算所有可用 API Key 的总余额
+  const totalBalance = balances.reduce((sum, item) => {
+    if (item.balance !== null && item.balance !== undefined && typeof item.balance === 'number') {
+      return sum + item.balance
+    }
+    return sum
+  }, 0)
+
+  // 如果余额很大，使用K、M等单位
+  if (totalBalance >= 1000000) {
+    return `${(totalBalance / 1000000).toFixed(1)}M`
+  } else if (totalBalance >= 1000) {
+    return `${(totalBalance / 1000).toFixed(1)}K`
+  } else if (totalBalance > 0) {
+    return totalBalance.toFixed(0)
+  }
+
+  // 余额为0或没有有效余额数据
+  return '0'
+}
+
+// 获取 Droid 余额提示文本
+const getDroidBalanceTooltip = (account) => {
+  if (!account || !account.id) {
+    return '点击查询余额'
+  }
+
+  const balances = droidBalances.value[account.id]
+  if (!balances || !Array.isArray(balances) || balances.length === 0) {
+    return '点击查询所有API Keys的余额'
+  }
+
+  // 构建详细的余额信息
+  const details = balances
+    .map((item, index) => {
+      const status = item.status === 'active' ? '✓' : '✗'
+      
+      // 如果有完整的配额信息，显示：剩余 / 总配额
+      if (item.balanceAllowance !== null && item.balanceAllowance !== undefined) {
+        const remaining = (item.balance || 0).toLocaleString()
+        const allowance = item.balanceAllowance.toLocaleString()
+        return `${status} Key ${index + 1}: ${remaining} / ${allowance}`
+      }
+      
+      // 否则只显示剩余量
+      const balance = item.balance !== null ? item.balance.toLocaleString() : 'N/A'
+      return `${status} Key ${index + 1}: ${balance}`
+    })
+    .join('\n')
+
+  return `API Keys 余额 (剩余/总配额):\n${details}\n\n点击刷新`
+}
+
 // 获取 Droid 账号的 API Key 数量
 const getDroidApiKeyCount = (account) => {
   if (!account || typeof account !== 'object') {
@@ -3148,7 +3280,7 @@ const getDroidApiKeyCount = (account) => {
 const getDroidApiKeyBadgeClasses = (account) => {
   const count = getDroidApiKeyCount(account)
   const baseClass =
-    'ml-1 inline-flex items-center gap-1 rounded-md border px-1.5 py-[1px] text-[10px] font-medium shadow-sm backdrop-blur-sm'
+    'inline-flex items-center gap-0.5 rounded-md border px-1.5 py-[1px] text-[10px] font-medium shadow-sm backdrop-blur-sm'
 
   if (count > 0) {
     return [

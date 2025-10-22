@@ -103,8 +103,6 @@ class CcrAccountService {
     logger.debug(
       `[DEBUG] Saving CCR account data to Redis with key: ${this.ACCOUNT_KEY_PREFIX}${accountId}`
     )
-    logger.debug(`[DEBUG] CCR Account data to save: ${JSON.stringify(accountData, null, 2)}`)
-
     await client.hset(`${this.ACCOUNT_KEY_PREFIX}${accountId}`, accountData)
 
     // 如果是共享账户，添加到共享账户集合
@@ -194,16 +192,11 @@ class CcrAccountService {
   // 🔍 获取单个账户（内部使用，包含敏感信息）
   async getAccount(accountId) {
     const client = redis.getClientSafe()
-    logger.debug(`[DEBUG] Getting CCR account data for ID: ${accountId}`)
     const accountData = await client.hgetall(`${this.ACCOUNT_KEY_PREFIX}${accountId}`)
 
     if (!accountData || Object.keys(accountData).length === 0) {
-      logger.debug(`[DEBUG] No CCR account data found for ID: ${accountId}`)
       return null
     }
-
-    logger.debug(`[DEBUG] Raw CCR account data keys: ${Object.keys(accountData).join(', ')}`)
-    logger.debug(`[DEBUG] Raw supportedModels value: ${accountData.supportedModels}`)
 
     // 解密敏感字段（只解密apiKey，apiUrl不加密）
     const decryptedKey = this._decryptSensitiveData(accountData.apiKey)
@@ -215,8 +208,6 @@ class CcrAccountService {
 
     // 解析JSON字段
     const parsedModels = JSON.parse(accountData.supportedModels || '[]')
-    logger.debug(`[DEBUG] Parsed supportedModels: ${JSON.stringify(parsedModels)}`)
-
     accountData.supportedModels = parsedModels
     accountData.priority = parseInt(accountData.priority) || 50
     {
@@ -252,8 +243,6 @@ class CcrAccountService {
       logger.debug(
         `[DEBUG] CCR update request received with fields: ${Object.keys(updates).join(', ')}`
       )
-      logger.debug(`[DEBUG] CCR Updates content: ${JSON.stringify(updates, null, 2)}`)
-
       if (updates.name !== undefined) {
         updatedData.name = updates.name
       }
@@ -270,7 +259,6 @@ class CcrAccountService {
         updatedData.priority = updates.priority.toString()
       }
       if (updates.supportedModels !== undefined) {
-        logger.debug(`[DEBUG] Updating supportedModels: ${JSON.stringify(updates.supportedModels)}`)
         // 处理 supportedModels，确保向后兼容
         const processedModels = this._processModelMapping(updates.supportedModels)
         updatedData.supportedModels = JSON.stringify(processedModels)

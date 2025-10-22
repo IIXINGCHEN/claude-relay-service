@@ -1,3 +1,5 @@
+const logger = require('./logger')
+
 /**
  * LRU (Least Recently Used) 缓存实现
  * 用于缓存解密结果，提高性能同时控制内存使用
@@ -84,22 +86,21 @@ class LRUCache {
       }
     }
 
-    this.lastCleanup = now
     if (cleanedCount > 0) {
-      console.log(`🧹 LRU Cache: Cleaned ${cleanedCount} expired items`)
+      logger.debug('LRUCache: Cleaned up expired entries', { cleanedCount })
     }
+
+    this.lastCleanup = now
   }
 
   /**
    * 清空缓存
    */
   clear() {
-    const { size } = this.cache
     this.cache.clear()
     this.hits = 0
     this.misses = 0
     this.evictions = 0
-    console.log(`🗑️ LRU Cache: Cleared ${size} items`)
   }
 
   /**
@@ -121,13 +122,12 @@ class LRUCache {
   }
 
   /**
-   * 打印缓存统计信息
+   * 打印缓存统计信息（已废弃，使用 getStats() 代替）
+   * @deprecated
    */
   printStats() {
-    const stats = this.getStats()
-    console.log(
-      `📊 LRU Cache Stats: Size: ${stats.size}/${stats.maxSize}, Hit Rate: ${stats.hitRate}, Hits: ${stats.hits}, Misses: ${stats.misses}, Evictions: ${stats.evictions}`
-    )
+    // Deprecated: Use getStats() and log via proper logger instead
+    return this.getStats()
   }
 }
 

@@ -119,7 +119,7 @@ class DroidAccountService {
   }
 
   /**
-   * 解密敏感数据（带缓存）
+   * 解密敏感数据（带缓存，向后兼容）
    */
   _decryptSensitiveData(encryptedText) {
     if (!encryptedText) {
@@ -134,22 +134,47 @@ class DroidAccountService {
     }
 
     try {
-      const key = this._generateEncryptionKey()
-      const parts = encryptedText.split(':')
-      const iv = Buffer.from(parts[0], 'hex')
-      const encrypted = parts[1]
+      let decrypted = ''
 
-      const decipher = crypto.createDecipheriv(this.ENCRYPTION_ALGORITHM, key, iv)
-      let decrypted = decipher.update(encrypted, 'hex', 'utf8')
-      decrypted += decipher.final('utf8')
+      // 检查是否是新格式（包含IV）
+      if (encryptedText.includes(':')) {
+        // 新格式：iv:encryptedData
+        const parts = encryptedText.split(':')
+        if (parts.length === 2) {
+          const key = this._generateEncryptionKey()
+          const iv = Buffer.from(parts[0], 'hex')
+          const encrypted = parts[1]
 
-      // 💾 存入缓存（5分钟过期）
-      this._decryptCache.set(cacheKey, decrypted, 5 * 60 * 1000)
+          const decipher = crypto.createDecipheriv(this.ENCRYPTION_ALGORITHM, key, iv)
+          decrypted = decipher.update(encrypted, 'hex', 'utf8')
+          decrypted += decipher.final('utf8')
 
-      return decrypted
+          // 💾 存入缓存（5分钟过期）
+          this._decryptCache.set(cacheKey, decrypted, 5 * 60 * 1000)
+
+          return decrypted
+        }
+      }
+
+      // 旧格式或格式错误，尝试旧方式解密（向后兼容）
+      // 注意：在新版本Node.js中这将失败，但我们会捕获错误
+      try {
+        const decipher = crypto.createDecipher('aes-256-cbc', config.security.encryptionKey)
+        decrypted = decipher.update(encryptedText, 'hex', 'utf8')
+        decrypted += decipher.final('utf8')
+
+        // 💾 旧格式也存入缓存
+        this._decryptCache.set(cacheKey, decrypted, 5 * 60 * 1000)
+
+        return decrypted
+      } catch (oldError) {
+        // 如果旧方式也失败，返回原数据而不是空字符串
+        logger.warn('⚠️ Could not decrypt Droid data, returning as-is:', oldError.message)
+        return encryptedText
+      }
     } catch (error) {
       logger.error('❌ Failed to decrypt Droid data:', error)
-      return ''
+      return encryptedText // 返回原数据而不是空字符串
     }
   }
 
@@ -243,12 +268,13 @@ class DroidAccountService {
 
   _decryptApiKeyEntry(entry) {
     if (!entry || !entry.encryptedKey) {
-      return null
+      throw new Error('Invalid API key entry: missing encryptedKey')
     }
 
     const apiKey = this._decryptSensitiveData(entry.encryptedKey)
-    if (!apiKey) {
-      return null
+    // 检查解密是否成功：如果返回的是原数据（加密格式），说明解密失败
+    if (!apiKey || apiKey === entry.encryptedKey) {
+      throw new Error('Failed to decrypt API key: decryption returned original encrypted data')
     }
 
     const usageCountNumber = Number(entry.usageCount)
@@ -276,9 +302,27 @@ class DroidAccountService {
     }
 
     const entries = this._parseApiKeyEntries(accountData.apiKeys)
-    return entries
-      .map((entry) => this._decryptApiKeyEntry(entry))
-      .filter((entry) => entry && entry.key)
+    const decryptedEntries = []
+
+    for (const entry of entries) {
+      try {
+        const decrypted = this._decryptApiKeyEntry(entry)
+        if (decrypted && decrypted.key) {
+          decryptedEntries.push(decrypted)
+        }
+      } catch (error) {
+        logger.error(
+          `❌ Failed to decrypt Droid API key entry ${entry?.id || 'unknown'} for account ${accountId}:`,
+          error.message
+        )
+        // 标记这个API Key为异常状态
+        if (entry?.id) {
+          await this.markApiKeyAsError(accountId, entry.id, `解密失败: ${error.message}`)
+        }
+      }
+    }
+
+    return decryptedEntries
   }
 
   async touchApiKeyUsage(accountId, keyId) {
@@ -1544,6 +1588,149 @@ class DroidAccountService {
     }
 
     return baseUrls[normalizedType] || baseUrls.openai
+  }
+
+  /**
+   * 查询单个API Key的余额信息
+   * @param {string} apiKey - Factory.ai API Key
+   * @param {Object} proxyConfig - 代理配置（可选）
+   * @returns {Promise<Object>} 余额信息 { success: boolean, balance: number, used: number, allowance: number, remaining: number, error: string }
+   */
+  async checkApiKeyBalance(apiKey, proxyConfig = null) {
+    if (!apiKey || typeof apiKey !== 'string') {
+      return { success: false, error: 'Invalid API key' }
+    }
+
+    try {
+      // Factory.ai 的余额查询使用 chat-usage 端点
+      const balanceUrl = 'https://app.factory.ai/api/organization/members/chat-usage'
+
+      const requestOptions = {
+        method: 'GET',
+        url: balanceUrl,
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'x-factory-client': 'web-browser',
+          'Content-Type': 'application/json',
+          'User-Agent': 'Factory-Key-Checker/1.0'
+        },
+        timeout: 15000
+      }
+
+      if (proxyConfig) {
+        const proxyAgent = ProxyHelper.createProxyAgent(proxyConfig)
+        if (proxyAgent) {
+          requestOptions.httpAgent = proxyAgent
+          requestOptions.httpsAgent = proxyAgent
+          requestOptions.proxy = false
+        }
+      }
+
+      const response = await axios(requestOptions)
+      const data = response.data || {}
+
+      // Factory.ai 返回的数据格式：
+      // {
+      //   usage: {
+      //     standard: {
+      //       userTokens: number,      // 已使用量
+      //       totalAllowance: number,  // 总配额
+      //       orgOverageUsed: number,  // 超额使用量
+      //       usedRatio: number        // 使用率 (0-1+)
+      //     }
+      //   }
+      // }
+
+      if (data.usage && data.usage.standard) {
+        const usage = data.usage.standard
+        const used = usage.userTokens || 0
+        const allowance = usage.totalAllowance || 0
+        const remaining = Math.max(0, allowance - used)
+
+        return {
+          success: true,
+          balance: remaining, // 剩余量
+          used, // 已使用量
+          allowance, // 总配额
+          remaining, // 剩余量（同balance）
+          overage: usage.orgOverageUsed || 0,
+          usedRatio: usage.usedRatio || 0,
+          raw: data
+        }
+      }
+
+      // 如果API返回成功但格式不符合预期
+      return {
+        success: true,
+        balance: null,
+        error: 'Unknown response format',
+        raw: data
+      }
+    } catch (error) {
+      const statusCode = error.response?.status
+      const errorData = error.response?.data
+
+      logger.warn(`⚠️ Failed to check Droid API key balance: ${error.message}`, {
+        statusCode,
+        errorData
+      })
+
+      return {
+        success: false,
+        error: error.message,
+        statusCode,
+        errorData
+      }
+    }
+  }
+
+  /**
+   * 批量查询账户下所有API Keys的余额
+   * @param {string} accountId - 账户ID
+   * @returns {Promise<Array>} API Keys余额信息数组
+   */
+  async checkAllApiKeysBalance(accountId) {
+    if (!accountId) {
+      return []
+    }
+
+    try {
+      const account = await this.getAccount(accountId)
+      if (!account) {
+        logger.warn(`Droid account not found: ${accountId}`)
+        return []
+      }
+
+      const proxyConfig = account.proxy ? JSON.parse(account.proxy) : null
+      const entries = await this.getDecryptedApiKeyEntries(accountId)
+
+      if (!entries || entries.length === 0) {
+        return []
+      }
+
+      // 并发查询所有API Keys的余额
+      const balancePromises = entries.map(async (entry) => {
+        const balanceInfo = await this.checkApiKeyBalance(entry.key, proxyConfig)
+        return {
+          id: entry.id,
+          status: entry.status,
+          usageCount: entry.usageCount,
+          lastUsedAt: entry.lastUsedAt,
+          balance: balanceInfo.success ? balanceInfo.balance : null, // 剩余量
+          balanceRemaining: balanceInfo.remaining || null, // 剩余量（同上）
+          balanceAllowance: balanceInfo.allowance || null, // 总配额
+          balanceUsed: balanceInfo.used || null, // 已使用量
+          balanceError: balanceInfo.error || null,
+          balanceCheckedAt: new Date().toISOString()
+        }
+      })
+
+      const results = await Promise.all(balancePromises)
+      return results
+    } catch (error) {
+      logger.error(`❌ Failed to check all API keys balance for account ${accountId}:`, error)
+      return []
+    }
   }
 
   async touchLastUsedAt(accountId) {

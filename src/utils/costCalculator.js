@@ -252,7 +252,6 @@ class CostCalculator {
     if (model === 'gpt-5-codex' && !MODEL_PRICING['gpt-5-codex']) {
       const gpt5Pricing = MODEL_PRICING['gpt-5']
       if (gpt5Pricing) {
-        console.log(`Using gpt-5 pricing as fallback for ${model}`)
         return gpt5Pricing
       }
     }

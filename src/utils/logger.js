@@ -6,6 +6,47 @@ const path = require('path')
 const fs = require('fs')
 const os = require('os')
 
+// 🔒 导入敏感数据脱敏工具
+let sensitiveDataMasker
+try {
+  sensitiveDataMasker = require('./sensitiveDataMasker')
+} catch (error) {
+  // 如果脱敏工具不可用，使用空操作
+  sensitiveDataMasker = {
+    maskObject: (obj) => obj,
+    maskString: (str) => str,
+    maskError: (err) => err
+  }
+}
+
+// 🔒 路径脱敏函数 - 隐藏绝对路径，只显示相对路径
+const sanitizePath = (filePath) => {
+  if (!filePath || typeof filePath !== 'string') {
+    return filePath
+  }
+
+  try {
+    // 获取项目根目录
+    const projectRoot = path.resolve(__dirname, '../..')
+
+    // 如果路径包含项目根目录，转换为相对路径
+    if (filePath.startsWith(projectRoot)) {
+      const relativePath = path.relative(projectRoot, filePath)
+      return `./${relativePath.replace(/\\/g, '/')}`
+    }
+
+    // 隐藏用户目录路径
+    const homeDir = os.homedir()
+    if (filePath.startsWith(homeDir)) {
+      return `~${filePath.substring(homeDir.length).replace(/\\/g, '/')}`
+    }
+
+    return filePath
+  } catch (error) {
+    return filePath
+  }
+}
+
 // 安全的 JSON 序列化函数，处理循环引用和特殊字符
 const safeStringify = (obj, maxDepth = 3, fullDepth = false) => {
   const seen = new WeakSet()
@@ -115,7 +156,9 @@ const createLogFormat = (colorize = false) => {
         verbose: '📝'
       }
 
-      let logMessage = `${emoji[level] || '📝'} [${timestamp}] ${level.toUpperCase()}: ${message}`
+      // 🔒 脱敏消息内容
+      const maskedMessage = sensitiveDataMasker.maskString(message)
+      let logMessage = `${emoji[level] || '📝'} [${timestamp}] ${level.toUpperCase()}: ${maskedMessage}`
 
       // 直接处理额外数据，不需要metadata包装
       const additionalData = { ...rest }
@@ -125,10 +168,14 @@ const createLogFormat = (colorize = false) => {
       delete additionalData.stack
 
       if (Object.keys(additionalData).length > 0) {
-        logMessage += ` | ${safeStringify(additionalData)}`
+        // 🔒 脱敏额外数据
+        const maskedData = sensitiveDataMasker.maskObject(additionalData)
+        logMessage += ` | ${safeStringify(maskedData)}`
       }
 
-      return stack ? `${logMessage}\n${stack}` : logMessage
+      // 🔒 脱敏堆栈信息
+      const maskedStack = stack ? sensitiveDataMasker.maskString(stack) : null
+      return maskedStack ? `${logMessage}\n${maskedStack}` : logMessage
     })
   )
 
@@ -161,15 +208,15 @@ const createRotateTransport = (filename, level = null) => {
 
   // 监听轮转事件
   transport.on('rotate', (oldFilename, newFilename) => {
-    console.log(`📦 Log rotated: ${oldFilename} -> ${newFilename}`)
+    console.log(`📦 Log rotated: ${sanitizePath(oldFilename)} -> ${sanitizePath(newFilename)}`)
   })
 
   transport.on('new', (newFilename) => {
-    console.log(`📄 New log file created: ${newFilename}`)
+    console.log(`📄 New log file created: ${sanitizePath(newFilename)}`)
   })
 
   transport.on('archive', (zipFilename) => {
-    console.log(`🗜️ Log archived: ${zipFilename}`)
+    console.log(`🗜️ Log archived: ${sanitizePath(zipFilename)}`)
   })
 
   return transport
@@ -401,10 +448,12 @@ logger.authDetail = (message, data = {}) => {
 // 🎬 启动日志记录系统
 logger.start('Logger initialized', {
   level: process.env.LOG_LEVEL || config.logging.level,
-  directory: config.logging.dirname,
+  directory: sanitizePath(config.logging.dirname),
   maxSize: config.logging.maxSize,
   maxFiles: config.logging.maxFiles,
   envOverride: process.env.LOG_LEVEL ? true : false
 })
 
+// 导出 logger 和工具函数
+logger.sanitizePath = sanitizePath
 module.exports = logger

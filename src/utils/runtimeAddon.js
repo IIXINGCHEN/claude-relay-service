@@ -110,10 +110,6 @@ class RuntimeAddonBus {
 
     if (loggerMethod) {
       loggerMethod(message, error)
-    } else if (targetLevel === 'error') {
-      console.error(message, error)
-    } else {
-      console.log(message, error)
     }
   }
 }

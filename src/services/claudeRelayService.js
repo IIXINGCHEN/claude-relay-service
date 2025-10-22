@@ -1077,7 +1077,6 @@ class ClaudeRelayService {
       }
 
       req.on('error', async (error) => {
-        console.error(': ❌ ', error)
         logger.error(`❌ Claude API request error (Account: ${accountId}):`, error.message, {
           code: error.code,
           errno: error.errno,
@@ -1483,7 +1482,6 @@ class ClaudeRelayService {
           })
 
           res.on('end', () => {
-            console.error(': ❌ ', errorData)
             logger.error(
               `❌ Claude API error response (Account: ${account?.name || accountId}):`,
               errorData

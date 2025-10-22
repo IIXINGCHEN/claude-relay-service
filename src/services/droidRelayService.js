@@ -28,6 +28,52 @@ class DroidRelayService {
     this.userAgent = 'factory-cli/0.19.12'
     this.systemPrompt = SYSTEM_PROMPT
     this.API_KEY_STICKY_PREFIX = 'droid_api_key'
+
+    // Factory.ai 支持的模型列表（只包含实际支持的模型）
+    this.supportedModels = {
+      anthropic: [
+        // Claude 4 系列
+        'claude-opus-4-1-20250805',
+        'claude-sonnet-4-5-20250929',
+        'claude-haiku-4-5-20251001',
+        'claude-sonnet-4-20250514',
+        'claude-opus-4-20250514',
+        // Claude 3.5 系列
+        //'claude-3-5-sonnet-20241022',
+        'claude-3-5-haiku-20241022'
+        // Claude 3 系列（如果 Factory.ai 支持）
+        //'claude-3-opus-20240229',
+        //'claude-3-sonnet-20240229',
+        // 'claude-3-haiku-20240307'
+      ],
+      openai: ['gpt-5-2025-08-07', 'gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-4']
+    }
+
+    // 模型映射表（将不支持的模型映射到支持的模型）
+    this.modelMappings = {
+      anthropic: {
+        // Haiku 系列映射
+        //'claude-3-haiku': 'claude-3-haiku-20240307',
+        //'claude-3.5-haiku': 'claude-3-5-haiku-20241022',
+        'claude-3-5-haiku': 'claude-3-5-haiku-20241022',
+        haiku: 'claude-3-5-haiku-20241022',
+        // Sonnet 系列映射
+        //'claude-3-sonnet': 'claude-3-sonnet-20240229',
+        //'claude-3.5-sonnet': 'claude-3-5-sonnet-20241022',
+        //'claude-3-5-sonnet': 'claude-3-5-sonnet-20241022',
+        sonnet: 'claude-sonnet-4-5-20250929',
+        'claude-sonnet-4': 'claude-sonnet-4-5-20250929',
+        // Opus 系列映射
+        // 'claude-3-opus': 'claude-3-opus-20240229',
+        opus: 'claude-opus-4-1-20250805',
+        'claude-opus-4': 'claude-opus-4-1-20250805'
+      },
+      openai: {
+        'gpt-5': 'gpt-5-2025-08-07',
+        'gpt-4o-latest': 'gpt-4o',
+        'gpt-4-turbo-preview': 'gpt-4-turbo'
+      }
+    }
   }
 
   _normalizeEndpointType(endpointType) {
@@ -47,6 +93,54 @@ class DroidRelayService {
     return 'anthropic'
   }
 
+  /**
+   * 验证模型是否被 Factory.ai 支持
+   */
+  _validateModel(model, endpointType) {
+    if (!model || typeof model !== 'string') {
+      return { valid: false, error: 'Model name is required' }
+    }
+
+    const supportedList = this.supportedModels[endpointType] || []
+    if (supportedList.includes(model)) {
+      return { valid: true, model }
+    }
+
+    return {
+      valid: false,
+      error: `Model '${model}' is not supported by Factory.ai ${endpointType} endpoint`
+    }
+  }
+
+  /**
+   * 尝试映射模型名到支持的模型
+   */
+  _tryMapModel(model, endpointType) {
+    if (!model || typeof model !== 'string') {
+      return null
+    }
+
+    const mappings = this.modelMappings[endpointType] || {}
+    const lowerModel = model.toLowerCase().trim()
+
+    // 1. 精确匹配
+    if (mappings[lowerModel]) {
+      return mappings[lowerModel]
+    }
+
+    // 2. 部分匹配（包含关系）
+    for (const [pattern, targetModel] of Object.entries(mappings)) {
+      if (lowerModel.includes(pattern)) {
+        return targetModel
+      }
+    }
+
+    return null
+  }
+
+  /**
+   * 标准化请求体，包括模型映射和验证
+   */
   _normalizeRequestBody(requestBody, endpointType) {
     if (!requestBody || typeof requestBody !== 'object') {
       return requestBody
@@ -54,32 +148,34 @@ class DroidRelayService {
 
     const normalizedBody = { ...requestBody }
 
-    if (endpointType === 'anthropic' && typeof normalizedBody.model === 'string') {
-      const originalModel = normalizedBody.model
-      const trimmedModel = originalModel.trim()
-      const lowerModel = trimmedModel.toLowerCase()
+    // 处理模型字段
+    if (typeof normalizedBody.model === 'string') {
+      const originalModel = normalizedBody.model.trim()
 
-      if (lowerModel.includes('haiku')) {
-        const mappedModel = 'claude-sonnet-4-20250514'
-        if (originalModel !== mappedModel) {
-          logger.info(`🔄 将请求模型从 ${originalModel} 映射为 ${mappedModel}`)
-        }
-        normalizedBody.model = mappedModel
+      // 1. 先验证原始模型是否支持
+      const validation = this._validateModel(originalModel, endpointType)
+      if (validation.valid) {
+        logger.debug(`✅ 模型 ${originalModel} 已验证通过`)
+        return normalizedBody
       }
-    }
 
-    if (endpointType === 'openai' && typeof normalizedBody.model === 'string') {
-      const originalModel = normalizedBody.model
-      const trimmedModel = originalModel.trim()
-      const lowerModel = trimmedModel.toLowerCase()
-
-      if (lowerModel === 'gpt-5') {
-        const mappedModel = 'gpt-5-2025-08-07'
-        if (originalModel !== mappedModel) {
-          logger.info(`🔄 将请求模型从 ${originalModel} 映射为 ${mappedModel}`)
+      // 2. 尝试映射到支持的模型
+      const mappedModel = this._tryMapModel(originalModel, endpointType)
+      if (mappedModel) {
+        // 再次验证映射后的模型
+        const mappedValidation = this._validateModel(mappedModel, endpointType)
+        if (mappedValidation.valid) {
+          logger.info(`🔄 模型映射: ${originalModel} -> ${mappedModel}`)
+          normalizedBody.model = mappedModel
+          return normalizedBody
         }
-        normalizedBody.model = mappedModel
       }
+
+      // 3. 既不支持也无法映射，记录警告
+      logger.warn(
+        `⚠️ 不支持的模型: ${originalModel}（${endpointType}），Factory.ai 可能返回 400 错误`
+      )
+      logger.warn(`   支持的模型列表: ${this.supportedModels[endpointType]?.join(', ')}`)
     }
 
     return normalizedBody
@@ -314,7 +410,28 @@ class DroidRelayService {
           })
         }
 
+        // 📊 记录请求详情
+        logger.info(`🚀 Droid 上游请求详情:`, {
+          url: apiUrl,
+          method: 'POST',
+          model: normalizedRequestBody?.model,
+          accountId: account?.id,
+          accountName: account?.name,
+          endpointType: normalizedEndpoint,
+          hasProxy: !!proxyAgent
+        })
+
         const response = await axios(requestOptions)
+
+        // 📊 记录响应详情
+        logger.info(`✅ Droid 上游响应详情:`, {
+          status: response.status,
+          statusText: response.statusText,
+          headers: response.headers,
+          dataType: typeof response.data,
+          hasUsage: !!response.data?.usage,
+          accountId: account?.id
+        })
 
         logger.info(`✅ Factory.ai response status: ${response.status}`)
 
@@ -330,7 +447,60 @@ class DroidRelayService {
         )
       }
     } catch (error) {
-      logger.error(`❌ Droid relay error: ${error.message}`, error)
+      // 📊 详细记录错误信息
+      const errorDetails = {
+        errorMessage: error.message,
+        errorType: error.constructor.name,
+        accountId: account?.id,
+        accountName: account?.name,
+        model: normalizedRequestBody?.model,
+        endpointType: normalizedEndpoint,
+        hasResponse: !!error.response,
+        statusCode: error?.response?.status,
+        statusText: error?.response?.statusText
+      }
+
+      // 如果有 HTTP 响应，记录详细信息
+      if (error.response) {
+        errorDetails.responseHeaders = error.response.headers
+        errorDetails.responseData = error.response.data
+        errorDetails.responseDataType = typeof error.response.data
+
+        logger.error(`❌ Droid 上游返回错误响应:`, {
+          status: error.response.status,
+          statusText: error.response.statusText,
+          headers: error.response.headers,
+          data: error.response.data,
+          accountId: account?.id,
+          accountName: account?.name,
+          model: normalizedRequestBody?.model,
+          endpointType: normalizedEndpoint
+        })
+      } else if (error.request) {
+        // 请求已发送但没有收到响应
+        errorDetails.networkError = true
+        errorDetails.errorCode = error.code
+        errorDetails.timeout = error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT'
+
+        logger.error(`❌ Droid 网络错误（无响应）:`, {
+          errorCode: error.code,
+          errorMessage: error.message,
+          accountId: account?.id,
+          accountName: account?.name,
+          model: normalizedRequestBody?.model,
+          endpointType: normalizedEndpoint
+        })
+      } else {
+        // 其他错误（如请求配置错误）
+        logger.error(`❌ Droid 请求配置错误:`, {
+          errorMessage: error.message,
+          stack: error.stack,
+          accountId: account?.id,
+          accountName: account?.name
+        })
+      }
+
+      logger.error(`❌ Droid relay error: ${error.message}`, errorDetails)
 
       const status = error?.response?.status
       if (status >= 400 && status < 500) {
@@ -340,7 +510,8 @@ class DroidRelayService {
             selectedAccountApiKey: selectedApiKey,
             endpointType: normalizedEndpoint,
             sessionHash,
-            clientApiKeyId
+            clientApiKeyId,
+            errorBody: error?.response?.data || null
           })
         } catch (handlingError) {
           logger.error('❌ 处理 Droid 4xx 异常失败:', handlingError)
@@ -348,6 +519,12 @@ class DroidRelayService {
       }
 
       if (error.response) {
+        // 📊 记录返回给客户端的错误响应
+        logger.info(`📤 返回客户端的错误响应:`, {
+          statusCode: error.response.status,
+          originalData: error.response.data
+        })
+
         // HTTP 错误响应
         return {
           statusCode: error.response.status,
@@ -361,12 +538,19 @@ class DroidRelayService {
         }
       }
 
-      // 网络错误或其他错误（统一返回 4xx）
+      // 网络错误或其他错误
       const mappedStatus = this._mapNetworkErrorStatus(error)
+      const errorBody = this._buildNetworkErrorBody(error)
+
+      logger.info(`📤 返回客户端的网络错误响应:`, {
+        mappedStatus,
+        errorBody
+      })
+
       return {
         statusCode: mappedStatus,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(this._buildNetworkErrorBody(error))
+        body: JSON.stringify(errorBody)
       }
     }
   }
@@ -487,8 +671,30 @@ class DroidRelayService {
         timeout: 600 * 1000
       }
 
+      // 📊 记录流式请求详情
+      logger.info(`🚀 Droid 上游流式请求详情:`, {
+        url: apiUrl,
+        method: 'POST',
+        model: requestBody?.model,
+        accountId: account?.id,
+        accountName: account?.name,
+        endpointType,
+        hasProxy: !!proxyAgent,
+        streamRequested: true
+      })
+
       const req = https.request(options, (res) => {
         upstreamResponse = res
+
+        // 📊 记录流式响应详情
+        logger.info(`✅ Droid 上游流式响应详情:`, {
+          status: res.statusCode,
+          statusMessage: res.statusMessage,
+          headers: res.headers,
+          accountId: account?.id,
+          accountName: account?.name
+        })
+
         logger.info(`✅ Factory.ai stream response status: ${res.statusCode}`)
 
         // 错误响应
@@ -497,20 +703,41 @@ class DroidRelayService {
 
           res.on('data', (chunk) => {
             chunks.push(chunk)
-            logger.info(`📦 got ${chunk.length} bytes of data`)
+            logger.debug(`📦 接收错误响应数据: ${chunk.length} bytes`)
           })
 
           res.on('end', () => {
-            logger.info('✅ res.end() reached')
+            logger.info('✅ 错误响应接收完成')
             const body = Buffer.concat(chunks).toString()
-            logger.error(`❌ Factory.ai error response body: ${body || '(empty)'}`)
+            let parsedErrorBody = null
+            try {
+              parsedErrorBody = body ? JSON.parse(body) : null
+            } catch (parseError) {
+              parsedErrorBody = { raw: body }
+            }
+
+            logger.error(`❌ Droid 上游流式错误响应详情:`, {
+              statusCode: res.statusCode,
+              statusMessage: res.statusMessage,
+              headers: res.headers,
+              responseBody: body || '(empty)',
+              responseBodyLength: body?.length || 0,
+              parsedError: parsedErrorBody,
+              requestModel: requestBody.model,
+              accountId: account?.id,
+              accountName: account?.name,
+              apiKeyId: selectedAccountApiKey?.id,
+              endpointType
+            })
+
             if (res.statusCode >= 400 && res.statusCode < 500) {
               this._handleUpstreamClientError(res.statusCode, {
                 account,
                 selectedAccountApiKey,
                 endpointType,
                 sessionHash,
-                clientApiKeyId
+                clientApiKeyId,
+                errorBody: parsedErrorBody
               }).catch((handlingError) => {
                 logger.error('❌ 处理 Droid 流式4xx 异常失败:', handlingError)
               })
@@ -1145,7 +1372,7 @@ class DroidRelayService {
   }
 
   /**
-   * 处理上游 4xx 响应，移除问题 API Key 或停止账号调度
+   * 处理上游 4xx 响应，区分错误类型并采取相应措施
    */
   async _handleUpstreamClientError(statusCode, context = {}) {
     if (!statusCode || statusCode < 400 || statusCode >= 500) {
@@ -1157,7 +1384,8 @@ class DroidRelayService {
       selectedAccountApiKey = null,
       endpointType = null,
       sessionHash = null,
-      clientApiKeyId = null
+      clientApiKeyId = null,
+      errorBody = null
     } = context
 
     const accountId = this._extractAccountId(account)
@@ -1174,66 +1402,140 @@ class DroidRelayService {
         ? account.authenticationMethod.toLowerCase().trim()
         : ''
 
-    if (authMethod === 'api_key') {
-      if (selectedAccountApiKey?.id) {
-        let markResult = null
-        const errorMessage = `${statusCode}`
+    // 🔍 区分错误类型
+    const isAuthError = statusCode === 401 || statusCode === 403 // 认证/授权错误
+    const isClientError = statusCode === 400 // 客户端请求错误（如模型无效）
+    const isRateLimitError = statusCode === 429 // 限流错误
+    const isNotFoundError = statusCode === 404 // 资源不存在
 
-        try {
-          // 标记API Key为异常状态而不是删除
-          markResult = await droidAccountService.markApiKeyAsError(
-            accountId,
-            selectedAccountApiKey.id,
-            errorMessage
-          )
-        } catch (error) {
-          logger.error(
-            `❌ 标记 Droid API Key ${selectedAccountApiKey.id} 异常状态（Account: ${accountId}）失败：`,
-            error
-          )
-        }
+    // 📊 记录详细错误信息
+    logger.error(`🚨 Droid 上游返回 ${statusCode} 错误`, {
+      statusCode,
+      accountId,
+      accountName: account?.name,
+      apiKeyId: selectedAccountApiKey?.id,
+      authMethod,
+      endpointType: normalizedEndpoint,
+      errorType: isAuthError
+        ? 'AUTH_ERROR'
+        : isClientError
+          ? 'CLIENT_ERROR'
+          : isRateLimitError
+            ? 'RATE_LIMIT'
+            : isNotFoundError
+              ? 'NOT_FOUND'
+              : 'OTHER',
+      errorBody: errorBody ? JSON.stringify(errorBody).substring(0, 500) : null
+    })
 
-        await this._clearApiKeyStickyMapping(accountId, normalizedEndpoint, sessionHash)
-
-        if (markResult?.marked) {
-          logger.warn(
-            `⚠️ 上游返回 ${statusCode}，已标记 Droid API Key ${selectedAccountApiKey.id} 为异常状态（Account: ${accountId}）`
-          )
-        } else {
-          logger.warn(
-            `⚠️ 上游返回 ${statusCode}，但未能标记 Droid API Key ${selectedAccountApiKey.id} 异常状态（Account: ${accountId}）：${markResult?.error || '未知错误'}`
-          )
-        }
-
-        // 检查是否还有可用的API Key
-        try {
-          const availableEntries = await droidAccountService.getDecryptedApiKeyEntries(accountId)
-          const activeEntries = availableEntries.filter((entry) => entry.status !== 'error')
-
-          if (activeEntries.length === 0) {
-            await this._stopDroidAccountScheduling(accountId, statusCode, '所有API Key均已异常')
-            await this._clearAccountStickyMapping(normalizedEndpoint, sessionHash, clientApiKeyId)
-          } else {
-            logger.info(`ℹ️ Droid 账号 ${accountId} 仍有 ${activeEntries.length} 个可用 API Key`)
-          }
-        } catch (error) {
-          logger.error(`❌ 检查可用API Key失败（Account: ${accountId}）：`, error)
-          await this._stopDroidAccountScheduling(accountId, statusCode, 'API Key检查失败')
-          await this._clearAccountStickyMapping(normalizedEndpoint, sessionHash, clientApiKeyId)
-        }
-
-        return
-      }
-
+    // ✅ 400 错误：客户端请求问题，不禁用账户（可能是模型名无效等）
+    if (isClientError) {
       logger.warn(
-        `⚠️ 上游返回 ${statusCode}，但未获取到对应的 Droid API Key（Account: ${accountId}）`
+        `⚠️ 上游返回 400 错误（客户端请求问题），账户 ${accountId} 保持可用，不标记 API Key 异常`
       )
-      await this._stopDroidAccountScheduling(accountId, statusCode, '缺少可用 API Key')
+      logger.warn(`   错误详情: ${errorBody ? JSON.stringify(errorBody).substring(0, 200) : '无'}`)
+      // 不调用 markApiKeyAsError 和 _stopDroidAccountScheduling
+      // 但清理粘性会话，让下次请求重新选择账户
+      await this._clearApiKeyStickyMapping(accountId, normalizedEndpoint, sessionHash)
       await this._clearAccountStickyMapping(normalizedEndpoint, sessionHash, clientApiKeyId)
       return
     }
 
-    await this._stopDroidAccountScheduling(accountId, statusCode, '凭证不可用')
+    // ⏱️ 429 错误：限流，暂时排除账户但不永久禁用
+    if (isRateLimitError) {
+      const rateLimitDuration = 300 // 5分钟
+      try {
+        await redis.getClient().setex(`droid:ratelimit:${accountId}`, rateLimitDuration, '1')
+        logger.warn(
+          `⏱️ 账户 ${accountId}（${account?.name}）触发限流，暂时排除 ${rateLimitDuration / 60} 分钟`
+        )
+      } catch (error) {
+        logger.error(`❌ 设置限流状态失败：${accountId}`, error)
+      }
+      // 清理粘性会话
+      await this._clearApiKeyStickyMapping(accountId, normalizedEndpoint, sessionHash)
+      await this._clearAccountStickyMapping(normalizedEndpoint, sessionHash, clientApiKeyId)
+      return
+    }
+
+    // 🚫 404 错误：资源不存在，记录日志但不禁用账户
+    if (isNotFoundError) {
+      logger.warn(`⚠️ 上游返回 404 错误（资源不存在），账户 ${accountId} 保持可用`)
+      await this._clearApiKeyStickyMapping(accountId, normalizedEndpoint, sessionHash)
+      await this._clearAccountStickyMapping(normalizedEndpoint, sessionHash, clientApiKeyId)
+      return
+    }
+
+    // 🔐 401/403 错误：认证/授权问题，需要禁用账户或 API Key
+    if (isAuthError) {
+      if (authMethod === 'api_key') {
+        if (selectedAccountApiKey?.id) {
+          let markResult = null
+          const errorMessage = `认证失败: ${statusCode}`
+
+          try {
+            // 标记API Key为异常状态
+            markResult = await droidAccountService.markApiKeyAsError(
+              accountId,
+              selectedAccountApiKey.id,
+              errorMessage
+            )
+          } catch (error) {
+            logger.error(
+              `❌ 标记 Droid API Key ${selectedAccountApiKey.id} 异常状态（Account: ${accountId}）失败：`,
+              error
+            )
+          }
+
+          await this._clearApiKeyStickyMapping(accountId, normalizedEndpoint, sessionHash)
+
+          if (markResult?.marked) {
+            logger.warn(
+              `⚠️ 认证失败 ${statusCode}，已标记 Droid API Key ${selectedAccountApiKey.id} 为异常状态（Account: ${accountId}）`
+            )
+          } else {
+            logger.warn(
+              `⚠️ 认证失败 ${statusCode}，但未能标记 Droid API Key ${selectedAccountApiKey.id} 异常状态（Account: ${accountId}）：${markResult?.error || '未知错误'}`
+            )
+          }
+
+          // 检查是否还有可用的API Key
+          try {
+            const availableEntries = await droidAccountService.getDecryptedApiKeyEntries(accountId)
+            const activeEntries = availableEntries.filter((entry) => entry.status !== 'error')
+
+            if (activeEntries.length === 0) {
+              await this._stopDroidAccountScheduling(accountId, statusCode, '所有API Key均已异常')
+              await this._clearAccountStickyMapping(normalizedEndpoint, sessionHash, clientApiKeyId)
+            } else {
+              logger.info(`ℹ️ Droid 账号 ${accountId} 仍有 ${activeEntries.length} 个可用 API Key`)
+            }
+          } catch (error) {
+            logger.error(`❌ 检查可用API Key失败（Account: ${accountId}）：`, error)
+            await this._stopDroidAccountScheduling(accountId, statusCode, 'API Key检查失败')
+            await this._clearAccountStickyMapping(normalizedEndpoint, sessionHash, clientApiKeyId)
+          }
+
+          return
+        }
+
+        logger.warn(
+          `⚠️ 认证失败 ${statusCode}，但未获取到对应的 Droid API Key（Account: ${accountId}）`
+        )
+        await this._stopDroidAccountScheduling(accountId, statusCode, '缺少可用 API Key')
+        await this._clearAccountStickyMapping(normalizedEndpoint, sessionHash, clientApiKeyId)
+        return
+      }
+
+      // OAuth 模式的认证失败
+      await this._stopDroidAccountScheduling(accountId, statusCode, '凭证认证失败')
+      await this._clearAccountStickyMapping(normalizedEndpoint, sessionHash, clientApiKeyId)
+      return
+    }
+
+    // 🔧 其他 4xx 错误：默认处理（保守策略，记录但不禁用）
+    logger.warn(`⚠️ 上游返回未分类的 4xx 错误 ${statusCode}，账户 ${accountId} 保持可用`)
+    await this._clearApiKeyStickyMapping(accountId, normalizedEndpoint, sessionHash)
     await this._clearAccountStickyMapping(normalizedEndpoint, sessionHash, clientApiKeyId)
   }
 
@@ -1304,32 +1606,152 @@ class DroidRelayService {
   _mapNetworkErrorStatus(error) {
     const code = (error && error.code ? String(error.code) : '').toUpperCase()
 
+    // 超时错误 - 408 Request Timeout
     if (code === 'ECONNABORTED' || code === 'ETIMEDOUT') {
       return 408
     }
 
+    // 连接被重置或管道错误 - 503 Service Unavailable
     if (code === 'ECONNRESET' || code === 'EPIPE') {
-      return 424
+      return 503
     }
 
+    // DNS 解析失败 - 502 Bad Gateway
     if (code === 'ENOTFOUND' || code === 'EAI_AGAIN') {
-      return 424
+      return 502
     }
 
+    // 连接被拒绝 - 503 Service Unavailable
+    if (code === 'ECONNREFUSED') {
+      return 503
+    }
+
+    // 证书错误 - 502 Bad Gateway
+    if (code === 'CERT_HAS_EXPIRED' || code === 'UNABLE_TO_VERIFY_LEAF_SIGNATURE') {
+      return 502
+    }
+
+    // 网络不可达 - 503 Service Unavailable
+    if (code === 'ENETUNREACH' || code === 'EHOSTUNREACH') {
+      return 503
+    }
+
+    // 通过错误消息判断
     if (typeof error === 'object' && error !== null) {
       const message = (error.message || '').toLowerCase()
+
+      // 超时相关
       if (message.includes('timeout')) {
-        return 408
+        // 区分请求超时和网关超时
+        if (message.includes('gateway') || message.includes('upstream')) {
+          return 504 // Gateway Timeout
+        }
+        return 408 // Request Timeout
+      }
+
+      // 证书/SSL 相关
+      if (message.includes('certificate') || message.includes('ssl') || message.includes('tls')) {
+        return 502 // Bad Gateway
+      }
+
+      // 服务不可用相关
+      if (message.includes('refused') || message.includes('unavailable')) {
+        return 503 // Service Unavailable
+      }
+
+      // 依赖失败
+      if (message.includes('dependency') || message.includes('upstream failed')) {
+        return 424 // Failed Dependency
       }
     }
 
-    return 424
+    // 默认返回 502 Bad Gateway
+    return 502
   }
 
   _buildNetworkErrorBody(error) {
+    const code = (error && error.code ? String(error.code) : '').toUpperCase()
+    let errorType = 'network_error'
+    let friendlyMessage = '网络连接失败'
+    let suggestions = []
+
+    // 根据错误类型提供友好的错误消息和解决建议
+    switch (code) {
+      case 'ECONNABORTED':
+      case 'ETIMEDOUT':
+        errorType = 'timeout'
+        friendlyMessage = '请求超时'
+        suggestions = ['请稍后重试', '检查网络连接是否稳定', '如果问题持续，请联系管理员']
+        break
+      case 'ECONNRESET':
+        errorType = 'connection_reset'
+        friendlyMessage = '连接被重置'
+        suggestions = ['服务可能暂时不可用', '请稍后重试', '检查代理配置是否正确']
+        break
+      case 'ENOTFOUND':
+      case 'EAI_AGAIN':
+        errorType = 'dns_error'
+        friendlyMessage = 'DNS 解析失败'
+        suggestions = ['请检查网络连接', '如果使用代理，请确认代理配置正确', '尝试更换 DNS 服务器']
+        break
+      case 'ECONNREFUSED':
+        errorType = 'connection_refused'
+        friendlyMessage = '连接被拒绝'
+        suggestions = ['目标服务可能未启动', '检查防火墙设置', '确认代理配置是否正确']
+        break
+      case 'CERT_HAS_EXPIRED':
+      case 'UNABLE_TO_VERIFY_LEAF_SIGNATURE':
+        errorType = 'certificate_error'
+        friendlyMessage = 'SSL 证书验证失败'
+        suggestions = ['证书可能已过期', '检查系统时间是否正确', '联系管理员更新证书']
+        break
+      case 'EPIPE':
+        errorType = 'broken_pipe'
+        friendlyMessage = '管道断开'
+        suggestions = ['连接已中断', '请重新发起请求']
+        break
+      case 'ENETUNREACH':
+      case 'EHOSTUNREACH':
+        errorType = 'network_unreachable'
+        friendlyMessage = '网络不可达'
+        suggestions = ['检查网络连接', '确认目标服务器地址正确', '检查代理或 VPN 设置']
+        break
+      default:
+        if (error?.message) {
+          const message = error.message.toLowerCase()
+          if (message.includes('timeout')) {
+            errorType = 'timeout'
+            if (message.includes('gateway') || message.includes('upstream')) {
+              friendlyMessage = '网关超时'
+              suggestions = ['上游服务响应超时', '请稍后重试', '如果问题持续，请联系管理员']
+            } else {
+              friendlyMessage = '请求超时'
+              suggestions = ['请稍后重试', '检查网络连接是否稳定']
+            }
+          } else if (message.includes('certificate') || message.includes('ssl')) {
+            errorType = 'certificate_error'
+            friendlyMessage = 'SSL 证书验证失败'
+            suggestions = ['证书可能已过期或无效', '检查系统时间是否正确']
+          } else if (message.includes('proxy')) {
+            errorType = 'proxy_error'
+            friendlyMessage = '代理连接失败'
+            suggestions = ['检查代理配置是否正确', '确认代理服务器是否可用', '尝试更换代理或直连']
+          } else if (message.includes('dependency') || message.includes('upstream failed')) {
+            errorType = 'dependency_failed'
+            friendlyMessage = '依赖服务失败'
+            suggestions = ['上游服务返回错误', '请稍后重试', '联系管理员检查服务状态']
+          }
+        }
+    }
+
     const body = {
-      error: 'relay_upstream_failure',
-      message: error?.message || '上游请求失败'
+      error: errorType,
+      message: friendlyMessage,
+      details: error?.message || '未知错误'
+    }
+
+    if (suggestions.length > 0) {
+      body.suggestions = suggestions
     }
 
     if (error?.code) {

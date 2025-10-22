@@ -7760,8 +7760,8 @@ router.put('/openai-accounts/:id/toggle', authenticateAdmin, async (req, res) =>
     account.enabled = !account.enabled
     account.updatedAt = new Date().toISOString()
 
-    // TODO: 更新方法
-    // await redis.updateOpenAiAccount(id, account)
+    // Note: OpenAI账户状态切换功能当前仅更新内存对象
+    // 如需持久化到Redis，需实现 redis.updateOpenAiAccount 方法
 
     logger.success(
       `✅ ${account.enabled ? '启用' : '禁用'} OpenAI 账户: ${account.name} (ID: ${id})`
@@ -8849,8 +8849,13 @@ router.post('/droid-accounts', authenticateAdmin, async (req, res) => {
 
     const normalizedAccountType = rawAccountType || 'shared'
 
+    // 🔍 参数验证错误（返回 400）
     if (!['shared', 'dedicated', 'group'].includes(normalizedAccountType)) {
-      return res.status(400).json({ error: '账户类型必须是 shared、dedicated 或 group' })
+      return res.status(400).json({
+        error: '参数错误',
+        message: '账户类型必须是 shared、dedicated 或 group',
+        field: 'accountType'
+      })
     }
 
     const normalizedGroupIds = Array.isArray(groupIds)
@@ -8862,7 +8867,20 @@ router.post('/droid-accounts', authenticateAdmin, async (req, res) => {
       normalizedGroupIds.length === 0 &&
       (!groupId || typeof groupId !== 'string' || !groupId.trim())
     ) {
-      return res.status(400).json({ error: '分组调度账户必须至少选择一个分组' })
+      return res.status(400).json({
+        error: '参数错误',
+        message: '分组调度账户必须至少选择一个分组',
+        field: 'groupId'
+      })
+    }
+
+    // 验证必填字段
+    if (!req.body.name || typeof req.body.name !== 'string' || !req.body.name.trim()) {
+      return res.status(400).json({
+        error: '参数错误',
+        message: '账户名称不能为空',
+        field: 'name'
+      })
     }
 
     const accountPayload = {
@@ -8873,7 +8891,29 @@ router.post('/droid-accounts', authenticateAdmin, async (req, res) => {
     delete accountPayload.groupId
     delete accountPayload.groupIds
 
-    const account = await droidAccountService.createAccount(accountPayload)
+    // 🔧 业务逻辑错误处理
+    let account
+    try {
+      account = await droidAccountService.createAccount(accountPayload)
+    } catch (serviceError) {
+      // 区分业务错误和系统错误
+      if (
+        serviceError.message &&
+        (serviceError.message.includes('验证失败') ||
+          serviceError.message.includes('无效') ||
+          serviceError.message.includes('已存在') ||
+          serviceError.message.includes('Refresh Token'))
+      ) {
+        // 业务逻辑错误（如 Token 验证失败）
+        return res.status(400).json({
+          error: '业务错误',
+          message: serviceError.message,
+          type: 'business_error'
+        })
+      }
+      // 系统错误继续往外抛
+      throw serviceError
+    }
 
     if (normalizedAccountType === 'group') {
       try {
@@ -8884,9 +8924,17 @@ router.post('/droid-accounts', authenticateAdmin, async (req, res) => {
         }
       } catch (groupError) {
         logger.error(`Failed to attach Droid account ${account.id} to groups:`, groupError)
+        // 尝试清理已创建的账户
+        try {
+          await droidAccountService.deleteAccount(account.id)
+          logger.info(`Cleaned up failed Droid account: ${account.id}`)
+        } catch (cleanupError) {
+          logger.error(`Failed to cleanup Droid account ${account.id}:`, cleanupError)
+        }
         return res.status(500).json({
-          error: 'Failed to bind Droid account to groups',
-          message: groupError.message
+          error: '系统错误',
+          message: `账户创建成功，但绑定分组失败：${groupError.message}`,
+          type: 'group_binding_error'
         })
       }
     }
@@ -8896,7 +8944,24 @@ router.post('/droid-accounts', authenticateAdmin, async (req, res) => {
     return res.json({ success: true, data: formattedAccount })
   } catch (error) {
     logger.error('Failed to create Droid account:', error)
-    return res.status(500).json({ error: 'Failed to create Droid account', message: error.message })
+
+    // 🚨 区分错误类型返回不同状态码
+    let statusCode = 500
+    let errorType = '系统错误'
+    let errorMessage = error.message
+
+    // 网络错误
+    if (error.code && ['ECONNREFUSED', 'ETIMEDOUT', 'ENOTFOUND'].includes(error.code)) {
+      statusCode = 502
+      errorType = '网络错误'
+      errorMessage = `无法连接到上游服务：${error.message}`
+    }
+
+    return res.status(statusCode).json({
+      error: errorType,
+      message: errorMessage,
+      details: error.stack || error.toString()
+    })
   }
 })
 
@@ -9140,6 +9205,39 @@ router.delete('/droid-accounts/:id', authenticateAdmin, async (req, res) => {
   } catch (error) {
     logger.error(`Failed to delete Droid account ${req.params.id}:`, error)
     return res.status(500).json({ error: 'Failed to delete Droid account', message: error.message })
+  }
+})
+
+// 查询 Droid 账户下所有API Keys的余额
+router.get('/droid-accounts/:id/balance', authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params
+
+    const account = await droidAccountService.getAccount(id)
+    if (!account) {
+      return res.status(404).json({
+        error: 'Not Found',
+        message: 'Droid account not found'
+      })
+    }
+
+    logger.info(`📊 Checking balance for Droid account: ${account.name} (${id})`)
+
+    const balances = await droidAccountService.checkAllApiKeysBalance(id)
+
+    return res.json({
+      success: true,
+      accountId: id,
+      accountName: account.name,
+      balances,
+      checkedAt: new Date().toISOString()
+    })
+  } catch (error) {
+    logger.error('❌ Failed to check Droid account balance:', error)
+    return res.status(500).json({
+      error: 'Failed to check balance',
+      message: error.message
+    })
   }
 })
 

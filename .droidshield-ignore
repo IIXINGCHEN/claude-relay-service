@@ -1,0 +1,13 @@
+# Droid Shield Ignore File
+# 示例配置文件和测试文件中的密钥是安全的占位符
+
+.env.example
+.env.production
+tests/setup.js
+tests/**/*.test.js
+tests/**/*.spec.js
+config/config.example.js
+SECURITY.md
+docker-compose.yml
+crs-compose.sh
+src/services/encryptionService.js

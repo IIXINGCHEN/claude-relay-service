@@ -703,8 +703,8 @@ class ApiKeyService {
 
       updatedData.updatedAt = new Date().toISOString()
 
-      // 更新时不需要重新建立哈希映射，因为API Key本身没有变化
-      await redis.setApiKey(keyId, updatedData)
+      // 🔒 确保哈希映射同步：每次更新都重新建立映射，防止数据不一致
+      await redis.setApiKey(keyId, updatedData, updatedData.apiKey)
 
       logger.success(`📝 Updated API key: ${keyId}`)
 
@@ -1045,6 +1045,7 @@ class ApiKeyService {
 
       // 计算费用（支持详细的缓存类型）- 添加错误处理
       let costInfo = { totalCost: 0, ephemeral5mCost: 0, ephemeral1hCost: 0 }
+      let costCalculationFailed = false
       try {
         const pricingService = require('./pricingService')
         // 确保 pricingService 已初始化
@@ -1056,6 +1057,7 @@ class ApiKeyService {
 
         // 验证计算结果
         if (!costInfo || typeof costInfo.totalCost !== 'number') {
+          costCalculationFailed = true
           logger.error(`❌ Invalid cost calculation result for model ${model}:`, costInfo)
           // 使用 CostCalculator 作为后备
           const CostCalculator = require('../utils/costCalculator')
@@ -1069,11 +1071,13 @@ class ApiKeyService {
               ephemeral5mCost: 0,
               ephemeral1hCost: 0
             }
+            costCalculationFailed = false // 回退成功
           } else {
             costInfo = { totalCost: 0, ephemeral5mCost: 0, ephemeral1hCost: 0 }
           }
         }
       } catch (pricingError) {
+        costCalculationFailed = true
         logger.error(`❌ Failed to calculate cost for model ${model}:`, pricingError)
         logger.error(`   Usage object:`, JSON.stringify(usageObject))
         // 使用 CostCalculator 作为后备
@@ -1089,9 +1093,22 @@ class ApiKeyService {
               ephemeral5mCost: 0,
               ephemeral1hCost: 0
             }
+            costCalculationFailed = false // 回退成功
           }
         } catch (fallbackError) {
           logger.error(`❌ Fallback cost calculation also failed:`, fallbackError)
+        }
+
+        // 🚨 发送费用计算失败告警
+        if (costCalculationFailed && totalTokens > 0) {
+          this._sendCostCalculationAlert({
+            keyId,
+            keyName: keyData?.name,
+            model,
+            tokens: totalTokens,
+            error: pricingError.message,
+            usageObject
+          })
         }
       }
 
@@ -1395,6 +1412,35 @@ class ApiKeyService {
     }
   }
 
+  // 🚨 发送费用计算失败告警（内部方法）
+  async _sendCostCalculationAlert(alertData) {
+    try {
+      const webhookService = require('./webhookService')
+      await webhookService.sendWebhook('cost_calculation_failure', {
+        type: 'cost_calculation_failure',
+        severity: 'high',
+        timestamp: new Date().toISOString(),
+        apiKey: {
+          id: alertData.keyId,
+          name: alertData.keyName
+        },
+        model: alertData.model,
+        tokens: alertData.tokens,
+        error: alertData.error,
+        usageDetails: {
+          inputTokens: alertData.usageObject.input_tokens || 0,
+          outputTokens: alertData.usageObject.output_tokens || 0,
+          cacheCreateTokens: alertData.usageObject.cache_creation_input_tokens || 0,
+          cacheReadTokens: alertData.usageObject.cache_read_input_tokens || 0
+        },
+        message: `费用计算失败: API Key ${alertData.keyName} (${alertData.keyId}) 使用模型 ${alertData.model}，产生 ${alertData.tokens} tokens 但无法计算费用。请检查定价配置。`
+      })
+    } catch (error) {
+      // 静默失败，不影响主流程
+      logger.debug('Failed to send cost calculation alert:', error.message)
+    }
+  }
+
   // 🔐 生成密钥
   _generateSecretKey() {
     return crypto.randomBytes(32).toString('hex')
@@ -1645,8 +1691,8 @@ class ApiKeyService {
         }
       }
 
-      // TODO: 实现日期范围和模型统计
-      // 这里可以根据需要添加更详细的统计逻辑
+      // Note: 日期范围和模型统计功能已在其他接口中实现
+      // 如需在此处添加，可参考 getUsageByDateRange 和 getModelUsageStats 方法
 
       return stats
     } catch (error) {
