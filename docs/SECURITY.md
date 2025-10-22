@@ -90,3 +90,26 @@ This service implements:
 - Security headers (via Helmet.js)
 - CORS protection
 - Rate limiting
+
+## Redis TLS Configuration
+
+For production environments, consider enabling Redis TLS:
+
+```env
+REDIS_ENABLE_TLS=true
+REDIS_PORT=6380  # TLS port
+```
+
+If TLS is not required (e.g., local development):
+```env
+REDIS_TLS_NOT_REQUIRED=true  # Suppress warnings
+```
+
+## Quick Security Setup
+
+```bash
+# Generate all required keys
+node -e "console.log('JWT_SECRET=' + require('crypto').randomBytes(32).toString('base64'))"
+node -e "console.log('ENCRYPTION_KEY=' + require('crypto').randomBytes(16).toString('hex'))"
+node -e "console.log('REDIS_PASSWORD=' + require('crypto').randomBytes(16).toString('base64'))"
+```
