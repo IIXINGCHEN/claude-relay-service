@@ -3,7 +3,7 @@ version: '3.8'
 services:
   # 🚀 Claude Relay Service
   claude-relay:
-    image: claude-relay-service:1.1.186
+    image: claude-relay-service:local
     restart: unless-stopped
     ports:
       - "${BIND_HOST:-0.0.0.0}:${PORT:-3000}:3000"

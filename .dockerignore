@@ -37,8 +37,7 @@ coverage
 *~
 .DS_Store
 
-# 构建产物（会在Docker内部重新构建）
-web/admin-spa/dist
+# 构建产物（前端构建文件需要包含）
 web/admin-spa/node_modules
 
 # 文档

@@ -1,28 +1,10 @@
-# 🎯 前端构建阶段
-FROM registry.cn-hangzhou.aliyuncs.com/library/node:20-alpine AS frontend-builder
-
-# 📁 设置工作目录
-WORKDIR /app/web/admin-spa
-
-# 📦 复制前端依赖文件
-COPY web/admin-spa/package*.json ./
-
-# 🔽 安装前端依赖
-RUN npm ci
-
-# 📋 复制前端源代码
-COPY web/admin-spa/ ./
-
-# 🏗️ 构建前端
-RUN npm run build
-
 # 🐳 主应用阶段
-FROM registry.cn-hangzhou.aliyuncs.com/library/node:20-alpine
+FROM node:20-alpine
 
 # 📋 设置标签
 LABEL maintainer="claude-relay-service@example.com"
 LABEL description="Claude Code API Relay Service"
-LABEL version="1.1.186"
+LABEL version="1.1.183"
 
 # 🔧 安装系统依赖
 RUN apk add --no-cache \
@@ -44,8 +26,7 @@ RUN npm ci --only=production && \
 # 📋 复制应用代码
 COPY . .
 
-# 📦 从构建阶段复制前端产物
-COPY --from=frontend-builder /app/web/admin-spa/dist /app/web/admin-spa/dist
+# 前端构建被跳过，使用现有构建文件
 
 # 🔧 复制并设置启动脚本权限
 COPY docker-entrypoint.sh /usr/local/bin/
