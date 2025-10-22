@@ -164,6 +164,9 @@ jobs:
         # 复制构建产物到临时目录
         cp -r web/admin-spa/dist/* "$TEMP_DIR/"
         
+        # 保存当前的更改（如果有）
+        git stash push -m "Temporary stash for web-dist deployment" || true
+        
         # 检查 web-dist 分支是否存在
         if git ls-remote --heads origin web-dist | grep -q web-dist; then
           echo "Checking out existing web-dist branch"
@@ -209,6 +212,9 @@ jobs:
         
         # 切换回主分支
         git checkout main
+        
+        # 恢复之前保存的更改（如果有）
+        git stash pop || true
         
         # 清理临时目录
         rm -rf "$TEMP_DIR"

@@ -2,7 +2,7 @@ name: 同步模型价格数据
 
 on:
   schedule:
-    - cron: '*/10 * * * *'
+    - cron: '0 */6 * * *'  # 每6小时运行一次，而不是每10分钟
   workflow_dispatch: {}
 
 jobs:
@@ -11,10 +11,10 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: 检出 price-mirror 分支
+      - name: 检出代码仓库
         uses: actions/checkout@v4
         with:
-          ref: price-mirror
+          ref: main  # 使用 main 分支
           fetch-depth: 0
 
       - name: 下载上游价格文件
@@ -53,10 +53,16 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add model_prices_and_context_window.json model_prices_and_context_window.sha256
-          COMMIT_MSG="chore: 同步模型价格数据"
+          
+          # 将价格文件放在专门的目录中
+          mkdir -p data/pricing
+          mv model_prices_and_context_window.json data/pricing/
+          mv model_prices_and_context_window.sha256 data/pricing/
+          
+          git add data/pricing/model_prices_and_context_window.json data/pricing/model_prices_and_context_window.sha256
+          COMMIT_MSG="chore: 同步模型价格数据 [skip ci]"
           if [ -n "${NEW_HASH}" ]; then
-            COMMIT_MSG="$COMMIT_MSG (${NEW_HASH})"
+            COMMIT_MSG="$COMMIT_MSG (${NEW_HASH:0:8})"
           fi
           git commit -m "$COMMIT_MSG"
-          git push origin price-mirror
+          git push origin main
