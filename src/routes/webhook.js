@@ -1,3 +1,4 @@
+const { StandardResponses } = require('../utils/standardResponses')
 const express = require('express')
 const router = express.Router()
 const logger = require('../utils/logger')
@@ -16,10 +17,7 @@ router.get('/config', authenticateAdmin, async (req, res) => {
     })
   } catch (error) {
     logger.error('获取webhook配置失败:', error)
-    res.status(500).json({
-      error: 'Internal server error',
-      message: '获取webhook配置失败'
-    })
+    StandardResponses.internalError(res, error)
   }
 })
 
@@ -34,10 +32,7 @@ router.post('/config', authenticateAdmin, async (req, res) => {
     })
   } catch (error) {
     logger.error('保存webhook配置失败:', error)
-    res.status(500).json({
-      error: 'Internal server error',
-      message: error.message || '保存webhook配置失败'
-    })
+    StandardResponses.internalError(res, error)
   }
 })
 
@@ -52,10 +47,7 @@ router.post('/platforms', authenticateAdmin, async (req, res) => {
     })
   } catch (error) {
     logger.error('添加webhook平台失败:', error)
-    res.status(500).json({
-      error: 'Internal server error',
-      message: error.message || '添加webhook平台失败'
-    })
+    StandardResponses.internalError(res, error)
   }
 })
 
@@ -70,10 +62,7 @@ router.put('/platforms/:id', authenticateAdmin, async (req, res) => {
     })
   } catch (error) {
     logger.error('更新webhook平台失败:', error)
-    res.status(500).json({
-      error: 'Internal server error',
-      message: error.message || '更新webhook平台失败'
-    })
+    StandardResponses.internalError(res, error)
   }
 })
 
@@ -87,10 +76,7 @@ router.delete('/platforms/:id', authenticateAdmin, async (req, res) => {
     })
   } catch (error) {
     logger.error('删除webhook平台失败:', error)
-    res.status(500).json({
-      error: 'Internal server error',
-      message: error.message || '删除webhook平台失败'
-    })
+    StandardResponses.internalError(res, error)
   }
 })
 
@@ -105,10 +91,7 @@ router.post('/platforms/:id/toggle', authenticateAdmin, async (req, res) => {
     })
   } catch (error) {
     logger.error('切换webhook平台状态失败:', error)
-    res.status(500).json({
-      error: 'Internal server error',
-      message: error.message || '切换webhook平台状态失败'
-    })
+    StandardResponses.internalError(res, error)
   }
 })
 
@@ -332,10 +315,7 @@ router.post('/test', authenticateAdmin, async (req, res) => {
     }
   } catch (error) {
     logger.error('❌ Webhook测试错误:', error)
-    res.status(500).json({
-      error: 'Internal server error',
-      message: '测试webhook失败'
-    })
+    StandardResponses.internalError(res, error)
   }
 })
 
@@ -429,10 +409,7 @@ router.post('/test-notification', authenticateAdmin, async (req, res) => {
     })
   } catch (error) {
     logger.error('❌ 发送测试通知失败:', error)
-    res.status(500).json({
-      error: 'Internal server error',
-      message: `发送测试通知失败: ${error.message}`
-    })
+    StandardResponses.internalError(res, error)
   }
 })
 

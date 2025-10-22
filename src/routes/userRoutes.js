@@ -1,3 +1,4 @@
+const { StandardResponses } = require('../utils/standardResponses')
 const express = require('express')
 const router = express.Router()
 const ldapService = require('../services/ldapService')
@@ -65,10 +66,7 @@ router.post('/login', async (req, res) => {
         const retryAfter = Math.round(rateLimiterRes.msBeforeNext / 1000) || 900
         logger.security(`🚫 Login rate limit exceeded for IP: ${clientIp}`)
         res.set('Retry-After', String(retryAfter))
-        return res.status(429).json({
-          error: 'Too many requests',
-          message: `Too many login attempts from this IP. Please try again later.`
-        })
+        return StandardResponses.rateLimited(res)
       }
     }
 
@@ -80,10 +78,7 @@ router.post('/login', async (req, res) => {
         const retryAfter = Math.round(rateLimiterRes.msBeforeNext / 1000) || 3600
         logger.security(`🚫 Strict rate limit exceeded for IP: ${clientIp} - possible brute force`)
         res.set('Retry-After', String(retryAfter))
-        return res.status(429).json({
-          error: 'Too many requests',
-          message: 'Too many login attempts detected. Access temporarily blocked.'
-        })
+        return StandardResponses.rateLimited(res)
       }
     }
 
@@ -153,10 +148,7 @@ router.post('/login', async (req, res) => {
     })
   } catch (error) {
     logger.error('❌ User login error:', error)
-    res.status(500).json({
-      error: 'Login error',
-      message: 'Internal server error during login'
-    })
+    StandardResponses.internalError(res, error)
   }
 })
 
@@ -173,10 +165,7 @@ router.post('/logout', authenticateUser, async (req, res) => {
     })
   } catch (error) {
     logger.error('❌ User logout error:', error)
-    res.status(500).json({
-      error: 'Logout error',
-      message: 'Internal server error during logout'
-    })
+    StandardResponses.internalError(res, error)
   }
 })
 
@@ -214,10 +203,7 @@ router.get('/profile', authenticateUser, async (req, res) => {
     })
   } catch (error) {
     logger.error('❌ Get user profile error:', error)
-    res.status(500).json({
-      error: 'Profile error',
-      message: 'Failed to retrieve user profile'
-    })
+    StandardResponses.internalError(res, error)
   }
 })
 
@@ -279,10 +265,7 @@ router.get('/api-keys', authenticateUser, async (req, res) => {
     })
   } catch (error) {
     logger.error('❌ Get user API keys error:', error)
-    res.status(500).json({
-      error: 'API Keys error',
-      message: 'Failed to retrieve API keys'
-    })
+    StandardResponses.internalError(res, error)
   }
 })
 
@@ -358,10 +341,7 @@ router.post('/api-keys', authenticateUser, async (req, res) => {
     })
   } catch (error) {
     logger.error('❌ Create user API key error:', error)
-    res.status(500).json({
-      error: 'API Key creation error',
-      message: 'Failed to create API key'
-    })
+    StandardResponses.internalError(res, error)
   }
 })
 
@@ -402,10 +382,7 @@ router.delete('/api-keys/:keyId', authenticateUser, async (req, res) => {
     })
   } catch (error) {
     logger.error('❌ Delete user API key error:', error)
-    res.status(500).json({
-      error: 'API Key deletion error',
-      message: 'Failed to delete API key'
-    })
+    StandardResponses.internalError(res, error)
   }
 })
 
@@ -441,10 +418,7 @@ router.get('/usage-stats', authenticateUser, async (req, res) => {
     })
   } catch (error) {
     logger.error('❌ Get user usage stats error:', error)
-    res.status(500).json({
-      error: 'Usage stats error',
-      message: 'Failed to retrieve usage statistics'
-    })
+    StandardResponses.internalError(res, error)
   }
 })
 
@@ -488,10 +462,7 @@ router.get('/', authenticateUserOrAdmin, requireAdmin, async (req, res) => {
     })
   } catch (error) {
     logger.error('❌ Get users list error:', error)
-    res.status(500).json({
-      error: 'Users list error',
-      message: 'Failed to retrieve users list'
-    })
+    StandardResponses.internalError(res, error)
   }
 })
 
@@ -550,10 +521,7 @@ router.get('/:userId', authenticateUserOrAdmin, requireAdmin, async (req, res) =
     })
   } catch (error) {
     logger.error('❌ Get user details error:', error)
-    res.status(500).json({
-      error: 'User details error',
-      message: 'Failed to retrieve user details'
-    })
+    StandardResponses.internalError(res, error)
   }
 })
 
@@ -589,10 +557,7 @@ router.patch('/:userId/status', authenticateUserOrAdmin, requireAdmin, async (re
     })
   } catch (error) {
     logger.error('❌ Update user status error:', error)
-    res.status(500).json({
-      error: 'Update status error',
-      message: error.message || 'Failed to update user status'
-    })
+    StandardResponses.internalError(res, error)
   }
 })
 
@@ -627,10 +592,7 @@ router.patch('/:userId/role', authenticateUserOrAdmin, requireAdmin, async (req,
     })
   } catch (error) {
     logger.error('❌ Update user role error:', error)
-    res.status(500).json({
-      error: 'Update role error',
-      message: error.message || 'Failed to update user role'
-    })
+    StandardResponses.internalError(res, error)
   }
 })
 
@@ -659,10 +621,7 @@ router.post('/:userId/disable-keys', authenticateUserOrAdmin, requireAdmin, asyn
     })
   } catch (error) {
     logger.error('❌ Disable user API keys error:', error)
-    res.status(500).json({
-      error: 'Disable keys error',
-      message: 'Failed to disable user API keys'
-    })
+    StandardResponses.internalError(res, error)
   }
 })
 
@@ -717,10 +676,7 @@ router.get('/:userId/usage-stats', authenticateUserOrAdmin, requireAdmin, async 
     })
   } catch (error) {
     logger.error('❌ Get user usage stats (admin) error:', error)
-    res.status(500).json({
-      error: 'Usage stats error',
-      message: 'Failed to retrieve user usage statistics'
-    })
+    StandardResponses.internalError(res, error)
   }
 })
 
@@ -735,10 +691,7 @@ router.get('/stats/overview', authenticateUserOrAdmin, requireAdmin, async (req,
     })
   } catch (error) {
     logger.error('❌ Get user stats overview error:', error)
-    res.status(500).json({
-      error: 'Stats error',
-      message: 'Failed to retrieve user statistics'
-    })
+    StandardResponses.internalError(res, error)
   }
 })
 
@@ -754,10 +707,7 @@ router.get('/admin/ldap-test', authenticateUserOrAdmin, requireAdmin, async (req
     })
   } catch (error) {
     logger.error('❌ LDAP test error:', error)
-    res.status(500).json({
-      error: 'LDAP test error',
-      message: 'Failed to test LDAP connection'
-    })
+    StandardResponses.internalError(res, error)
   }
 })
 

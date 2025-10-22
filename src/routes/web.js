@@ -1,3 +1,4 @@
+const { StandardResponses } = require('../utils/standardResponses')
 const express = require('express')
 const bcrypt = require('bcryptjs')
 const crypto = require('crypto')
@@ -106,10 +107,7 @@ router.post('/auth/login', async (req, res) => {
     })
   } catch (error) {
     logger.error('❌ Login error:', error)
-    return res.status(500).json({
-      error: 'Login failed',
-      message: 'Internal server error'
-    })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -126,10 +124,7 @@ router.post('/auth/logout', async (req, res) => {
     return res.json({ success: true, message: 'Logout successful' })
   } catch (error) {
     logger.error('❌ Logout error:', error)
-    return res.status(500).json({
-      error: 'Logout failed',
-      message: 'Internal server error'
-    })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -174,10 +169,7 @@ router.post('/auth/change-password', async (req, res) => {
     // 获取当前管理员信息
     const adminData = await redis.getSession('admin_credentials')
     if (!adminData) {
-      return res.status(500).json({
-        error: 'Admin data not found',
-        message: 'Administrator credentials not found'
-      })
+      return StandardResponses.internalError(res, error)
     }
 
     // 验证当前密码
@@ -197,10 +189,7 @@ router.post('/auth/change-password', async (req, res) => {
     // 先更新 init.json（唯一真实数据源）
     const initFilePath = path.join(__dirname, '../../data/init.json')
     if (!fs.existsSync(initFilePath)) {
-      return res.status(500).json({
-        error: 'Configuration file not found',
-        message: 'init.json file is missing'
-      })
+      return StandardResponses.internalError(res, error)
     }
 
     try {
@@ -230,10 +219,7 @@ router.post('/auth/change-password', async (req, res) => {
       await redis.setSession('admin_credentials', updatedAdminData)
     } catch (fileError) {
       logger.error('❌ Failed to update init.json:', fileError)
-      return res.status(500).json({
-        error: 'Update failed',
-        message: 'Failed to update configuration file'
-      })
+      return StandardResponses.internalError(res, error)
     }
 
     // 清除当前会话（强制用户重新登录）
@@ -248,10 +234,7 @@ router.post('/auth/change-password', async (req, res) => {
     })
   } catch (error) {
     logger.error('❌ Change password error:', error)
-    return res.status(500).json({
-      error: 'Change password failed',
-      message: 'Internal server error'
-    })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -279,10 +262,7 @@ router.get('/auth/user', async (req, res) => {
     // 获取管理员信息
     const adminData = await redis.getSession('admin_credentials')
     if (!adminData) {
-      return res.status(500).json({
-        error: 'Admin data not found',
-        message: 'Administrator credentials not found'
-      })
+      return StandardResponses.internalError(res, error)
     }
 
     return res.json({
@@ -295,10 +275,7 @@ router.get('/auth/user', async (req, res) => {
     })
   } catch (error) {
     logger.error('❌ Get user info error:', error)
-    return res.status(500).json({
-      error: 'Get user info failed',
-      message: 'Internal server error'
-    })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -334,10 +311,7 @@ router.post('/auth/refresh', async (req, res) => {
     })
   } catch (error) {
     logger.error('❌ Token refresh error:', error)
-    return res.status(500).json({
-      error: 'Token refresh failed',
-      message: 'Internal server error'
-    })
+    return StandardResponses.internalError(res, error)
   }
 })
 

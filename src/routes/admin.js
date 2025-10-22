@@ -14,6 +14,7 @@ const redis = require('../models/redis')
 const { authenticateAdmin } = require('../middleware/auth')
 const logger = require('../utils/logger')
 const oauthHelper = require('../utils/oauthHelper')
+const { StandardResponses } = require('../utils/standardResponses')
 const {
   startDeviceAuthorization,
   pollDeviceAuthorization,
@@ -150,10 +151,7 @@ router.get('/users', authenticateAdmin, async (req, res) => {
     })
   } catch (error) {
     logger.error('❌ Failed to get users list:', error)
-    return res.status(500).json({
-      error: 'Failed to get users list',
-      message: error.message
-    })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -186,7 +184,7 @@ router.get('/api-keys/:keyId/cost-debug', authenticateAdmin, async (req, res) =>
     })
   } catch (error) {
     logger.error('❌ Failed to get cost debug info:', error)
-    return res.status(500).json({ error: 'Failed to get cost debug info', message: error.message })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -211,13 +209,13 @@ router.get('/api-keys', authenticateAdmin, async (req, res) => {
 
       // 确保日期范围有效
       if (start > end) {
-        return res.status(400).json({ error: 'Start date must be before or equal to end date' })
+        return StandardResponses.validationError(res, null, "Start date must be before or equal to end date")
       }
 
       // 限制最大范围为365天
       const daysDiff = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1
       if (daysDiff > 365) {
-        return res.status(400).json({ error: 'Date range cannot exceed 365 days' })
+        return StandardResponses.validationError(res, null, "Date range cannot exceed 365 days")
       }
 
       // 生成日期范围内每天的搜索模式
@@ -532,7 +530,7 @@ router.get('/api-keys', authenticateAdmin, async (req, res) => {
     return res.json({ success: true, data: apiKeys })
   } catch (error) {
     logger.error('❌ Failed to get API keys:', error)
-    return res.status(500).json({ error: 'Failed to get API keys', message: error.message })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -585,7 +583,7 @@ router.get('/api-keys/tags', authenticateAdmin, async (req, res) => {
     return res.json({ success: true, data: tags })
   } catch (error) {
     logger.error('❌ Failed to get API key tags:', error)
-    return res.status(500).json({ error: 'Failed to get API key tags', message: error.message })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -624,11 +622,11 @@ router.post('/api-keys', authenticateAdmin, async (req, res) => {
 
     // 输入验证
     if (!name || typeof name !== 'string' || name.trim().length === 0) {
-      return res.status(400).json({ error: 'Name is required and must be a non-empty string' })
+      return StandardResponses.validationError(res, null, "Name is required and must be a non-empty string")
     }
 
     if (name.length > 100) {
-      return res.status(400).json({ error: 'Name must be less than 100 characters' })
+      return StandardResponses.validationError(res, null, "Name must be less than 100 characters")
     }
 
     if (description && (typeof description !== 'string' || description.length > 500)) {
@@ -638,7 +636,7 @@ router.post('/api-keys', authenticateAdmin, async (req, res) => {
     }
 
     if (tokenLimit && (!Number.isInteger(Number(tokenLimit)) || Number(tokenLimit) < 0)) {
-      return res.status(400).json({ error: 'Token limit must be a non-negative integer' })
+      return StandardResponses.validationError(res, null, "Token limit must be a non-negative integer")
     }
 
     if (
@@ -647,7 +645,7 @@ router.post('/api-keys', authenticateAdmin, async (req, res) => {
       concurrencyLimit !== '' &&
       (!Number.isInteger(Number(concurrencyLimit)) || Number(concurrencyLimit) < 0)
     ) {
-      return res.status(400).json({ error: 'Concurrency limit must be a non-negative integer' })
+      return StandardResponses.validationError(res, null, "Concurrency limit must be a non-negative integer")
     }
 
     if (
@@ -667,34 +665,34 @@ router.post('/api-keys', authenticateAdmin, async (req, res) => {
       rateLimitRequests !== '' &&
       (!Number.isInteger(Number(rateLimitRequests)) || Number(rateLimitRequests) < 1)
     ) {
-      return res.status(400).json({ error: 'Rate limit requests must be a positive integer' })
+      return StandardResponses.validationError(res, null, "Rate limit requests must be a positive integer")
     }
 
     // 验证模型限制字段
     if (enableModelRestriction !== undefined && typeof enableModelRestriction !== 'boolean') {
-      return res.status(400).json({ error: 'Enable model restriction must be a boolean' })
+      return StandardResponses.validationError(res, null, "Enable model restriction must be a boolean")
     }
 
     if (restrictedModels !== undefined && !Array.isArray(restrictedModels)) {
-      return res.status(400).json({ error: 'Restricted models must be an array' })
+      return StandardResponses.validationError(res, null, "Restricted models must be an array")
     }
 
     // 验证客户端限制字段
     if (enableClientRestriction !== undefined && typeof enableClientRestriction !== 'boolean') {
-      return res.status(400).json({ error: 'Enable client restriction must be a boolean' })
+      return StandardResponses.validationError(res, null, "Enable client restriction must be a boolean")
     }
 
     if (allowedClients !== undefined && !Array.isArray(allowedClients)) {
-      return res.status(400).json({ error: 'Allowed clients must be an array' })
+      return StandardResponses.validationError(res, null, "Allowed clients must be an array")
     }
 
     // 验证标签字段
     if (tags !== undefined && !Array.isArray(tags)) {
-      return res.status(400).json({ error: 'Tags must be an array' })
+      return StandardResponses.validationError(res, null, "Tags must be an array")
     }
 
     if (tags && tags.some((tag) => typeof tag !== 'string' || tag.trim().length === 0)) {
-      return res.status(400).json({ error: 'All tags must be non-empty strings' })
+      return StandardResponses.validationError(res, null, "All tags must be non-empty strings")
     }
 
     if (
@@ -703,7 +701,7 @@ router.post('/api-keys', authenticateAdmin, async (req, res) => {
       totalCostLimit !== '' &&
       (Number.isNaN(Number(totalCostLimit)) || Number(totalCostLimit) < 0)
     ) {
-      return res.status(400).json({ error: 'Total cost limit must be a non-negative number' })
+      return StandardResponses.validationError(res, null, "Total cost limit must be a non-negative number")
     }
 
     // 验证激活相关字段
@@ -747,9 +745,7 @@ router.post('/api-keys', authenticateAdmin, async (req, res) => {
       permissions !== '' &&
       !['claude', 'gemini', 'openai', 'droid', 'all'].includes(permissions)
     ) {
-      return res.status(400).json({
-        error: 'Invalid permissions value. Must be claude, gemini, openai, droid, or all'
-      })
+      return StandardResponses.validationError(res, null, "Invalid permissions value. Must be claude, gemini, openai, droid, or all")
     }
 
     const newKey = await apiKeyService.generateApiKey({
@@ -786,7 +782,7 @@ router.post('/api-keys', authenticateAdmin, async (req, res) => {
     return res.json({ success: true, data: newKey })
   } catch (error) {
     logger.error('❌ Failed to create API key:', error)
-    return res.status(500).json({ error: 'Failed to create API key', message: error.message })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -826,11 +822,11 @@ router.post('/api-keys/batch', authenticateAdmin, async (req, res) => {
 
     // 输入验证
     if (!baseName || typeof baseName !== 'string' || baseName.trim().length === 0) {
-      return res.status(400).json({ error: 'Base name is required and must be a non-empty string' })
+      return StandardResponses.validationError(res, null, "Base name is required and must be a non-empty string")
     }
 
     if (!count || !Number.isInteger(count) || count < 2 || count > 500) {
-      return res.status(400).json({ error: 'Count must be an integer between 2 and 500' })
+      return StandardResponses.validationError(res, null, "Count must be an integer between 2 and 500")
     }
 
     if (baseName.length > 90) {
@@ -845,9 +841,7 @@ router.post('/api-keys/batch', authenticateAdmin, async (req, res) => {
       permissions !== '' &&
       !['claude', 'gemini', 'openai', 'droid', 'all'].includes(permissions)
     ) {
-      return res.status(400).json({
-        error: 'Invalid permissions value. Must be claude, gemini, openai, droid, or all'
-      })
+      return StandardResponses.validationError(res, null, "Invalid permissions value. Must be claude, gemini, openai, droid, or all")
     }
 
     // 生成批量API Keys
@@ -923,11 +917,7 @@ router.post('/api-keys/batch', authenticateAdmin, async (req, res) => {
     })
   } catch (error) {
     logger.error('Failed to batch create API keys:', error)
-    return res.status(500).json({
-      success: false,
-      error: 'Failed to batch create API keys',
-      message: error.message
-    })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -954,9 +944,7 @@ router.put('/api-keys/batch', authenticateAdmin, async (req, res) => {
       updates.permissions !== undefined &&
       !['claude', 'gemini', 'openai', 'droid', 'all'].includes(updates.permissions)
     ) {
-      return res.status(400).json({
-        error: 'Invalid permissions value. Must be claude, gemini, openai, droid, or all'
-      })
+      return StandardResponses.validationError(res, null, "Invalid permissions value. Must be claude, gemini, openai, droid, or all")
     }
 
     logger.info(
@@ -1109,10 +1097,7 @@ router.put('/api-keys/batch', authenticateAdmin, async (req, res) => {
     })
   } catch (error) {
     logger.error('❌ Failed to batch edit API keys:', error)
-    return res.status(500).json({
-      error: 'Batch edit failed',
-      message: error.message
-    })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -1154,24 +1139,24 @@ router.put('/api-keys/:keyId', authenticateAdmin, async (req, res) => {
     if (name !== undefined && name !== null && name !== '') {
       const trimmedName = name.toString().trim()
       if (trimmedName.length === 0) {
-        return res.status(400).json({ error: 'API Key name cannot be empty' })
+        return StandardResponses.validationError(res, null, "API Key name cannot be empty")
       }
       if (trimmedName.length > 100) {
-        return res.status(400).json({ error: 'API Key name must be less than 100 characters' })
+        return StandardResponses.validationError(res, null, "API Key name must be less than 100 characters")
       }
       updates.name = trimmedName
     }
 
     if (tokenLimit !== undefined && tokenLimit !== null && tokenLimit !== '') {
       if (!Number.isInteger(Number(tokenLimit)) || Number(tokenLimit) < 0) {
-        return res.status(400).json({ error: 'Token limit must be a non-negative integer' })
+        return StandardResponses.validationError(res, null, "Token limit must be a non-negative integer")
       }
       updates.tokenLimit = Number(tokenLimit)
     }
 
     if (concurrencyLimit !== undefined && concurrencyLimit !== null && concurrencyLimit !== '') {
       if (!Number.isInteger(Number(concurrencyLimit)) || Number(concurrencyLimit) < 0) {
-        return res.status(400).json({ error: 'Concurrency limit must be a non-negative integer' })
+        return StandardResponses.validationError(res, null, "Concurrency limit must be a non-negative integer")
       }
       updates.concurrencyLimit = Number(concurrencyLimit)
     }
@@ -1187,7 +1172,7 @@ router.put('/api-keys/:keyId', authenticateAdmin, async (req, res) => {
 
     if (rateLimitRequests !== undefined && rateLimitRequests !== null && rateLimitRequests !== '') {
       if (!Number.isInteger(Number(rateLimitRequests)) || Number(rateLimitRequests) < 0) {
-        return res.status(400).json({ error: 'Rate limit requests must be a non-negative integer' })
+        return StandardResponses.validationError(res, null, "Rate limit requests must be a non-negative integer")
       }
       updates.rateLimitRequests = Number(rateLimitRequests)
     }
@@ -1195,7 +1180,7 @@ router.put('/api-keys/:keyId', authenticateAdmin, async (req, res) => {
     if (rateLimitCost !== undefined && rateLimitCost !== null && rateLimitCost !== '') {
       const cost = Number(rateLimitCost)
       if (isNaN(cost) || cost < 0) {
-        return res.status(400).json({ error: 'Rate limit cost must be a non-negative number' })
+        return StandardResponses.validationError(res, null, "Rate limit cost must be a non-negative number")
       }
       updates.rateLimitCost = cost
     }
@@ -1233,9 +1218,7 @@ router.put('/api-keys/:keyId', authenticateAdmin, async (req, res) => {
     if (permissions !== undefined) {
       // 验证权限值
       if (!['claude', 'gemini', 'openai', 'droid', 'all'].includes(permissions)) {
-        return res.status(400).json({
-          error: 'Invalid permissions value. Must be claude, gemini, openai, droid, or all'
-        })
+        return StandardResponses.validationError(res, null, "Invalid permissions value. Must be claude, gemini, openai, droid, or all")
       }
       updates.permissions = permissions
     }
@@ -1243,14 +1226,14 @@ router.put('/api-keys/:keyId', authenticateAdmin, async (req, res) => {
     // 处理模型限制字段
     if (enableModelRestriction !== undefined) {
       if (typeof enableModelRestriction !== 'boolean') {
-        return res.status(400).json({ error: 'Enable model restriction must be a boolean' })
+        return StandardResponses.validationError(res, null, "Enable model restriction must be a boolean")
       }
       updates.enableModelRestriction = enableModelRestriction
     }
 
     if (restrictedModels !== undefined) {
       if (!Array.isArray(restrictedModels)) {
-        return res.status(400).json({ error: 'Restricted models must be an array' })
+        return StandardResponses.validationError(res, null, "Restricted models must be an array")
       }
       updates.restrictedModels = restrictedModels
     }
@@ -1258,14 +1241,14 @@ router.put('/api-keys/:keyId', authenticateAdmin, async (req, res) => {
     // 处理客户端限制字段
     if (enableClientRestriction !== undefined) {
       if (typeof enableClientRestriction !== 'boolean') {
-        return res.status(400).json({ error: 'Enable client restriction must be a boolean' })
+        return StandardResponses.validationError(res, null, "Enable client restriction must be a boolean")
       }
       updates.enableClientRestriction = enableClientRestriction
     }
 
     if (allowedClients !== undefined) {
       if (!Array.isArray(allowedClients)) {
-        return res.status(400).json({ error: 'Allowed clients must be an array' })
+        return StandardResponses.validationError(res, null, "Allowed clients must be an array")
       }
       updates.allowedClients = allowedClients
     }
@@ -1280,7 +1263,7 @@ router.put('/api-keys/:keyId', authenticateAdmin, async (req, res) => {
         // 验证日期格式
         const expireDate = new Date(expiresAt)
         if (isNaN(expireDate.getTime())) {
-          return res.status(400).json({ error: 'Invalid expiration date format' })
+          return StandardResponses.validationError(res, null, "Invalid expiration date format")
         }
         updates.expiresAt = expiresAt
         updates.isActive = expireDate > new Date() // 如果过期时间在当前时间之后，则设置为激活状态
@@ -1291,7 +1274,7 @@ router.put('/api-keys/:keyId', authenticateAdmin, async (req, res) => {
     if (dailyCostLimit !== undefined && dailyCostLimit !== null && dailyCostLimit !== '') {
       const costLimit = Number(dailyCostLimit)
       if (isNaN(costLimit) || costLimit < 0) {
-        return res.status(400).json({ error: 'Daily cost limit must be a non-negative number' })
+        return StandardResponses.validationError(res, null, "Daily cost limit must be a non-negative number")
       }
       updates.dailyCostLimit = costLimit
     }
@@ -1299,7 +1282,7 @@ router.put('/api-keys/:keyId', authenticateAdmin, async (req, res) => {
     if (totalCostLimit !== undefined && totalCostLimit !== null && totalCostLimit !== '') {
       const costLimit = Number(totalCostLimit)
       if (isNaN(costLimit) || costLimit < 0) {
-        return res.status(400).json({ error: 'Total cost limit must be a non-negative number' })
+        return StandardResponses.validationError(res, null, "Total cost limit must be a non-negative number")
       }
       updates.totalCostLimit = costLimit
     }
@@ -1323,10 +1306,10 @@ router.put('/api-keys/:keyId', authenticateAdmin, async (req, res) => {
     // 处理标签
     if (tags !== undefined) {
       if (!Array.isArray(tags)) {
-        return res.status(400).json({ error: 'Tags must be an array' })
+        return StandardResponses.validationError(res, null, "Tags must be an array")
       }
       if (tags.some((tag) => typeof tag !== 'string' || tag.trim().length === 0)) {
-        return res.status(400).json({ error: 'All tags must be non-empty strings' })
+        return StandardResponses.validationError(res, null, "All tags must be non-empty strings")
       }
       updates.tags = tags
     }
@@ -1334,7 +1317,7 @@ router.put('/api-keys/:keyId', authenticateAdmin, async (req, res) => {
     // 处理活跃/禁用状态状态, 放在过期处理后，以确保后续增加禁用key功能
     if (isActive !== undefined) {
       if (typeof isActive !== 'boolean') {
-        return res.status(400).json({ error: 'isActive must be a boolean' })
+        return StandardResponses.validationError(res, null, "isActive must be a boolean")
       }
       updates.isActive = isActive
     }
@@ -1353,10 +1336,10 @@ router.put('/api-keys/:keyId', authenticateAdmin, async (req, res) => {
         try {
           const user = await userService.getUserById(ownerId, false)
           if (!user) {
-            return res.status(400).json({ error: 'Invalid owner: User not found' })
+            return StandardResponses.validationError(res, null, "Invalid owner: User not found")
           }
           if (!user.isActive) {
-            return res.status(400).json({ error: 'Cannot assign to inactive user' })
+            return StandardResponses.validationError(res, null, "Cannot assign to inactive user")
           }
 
           // 设置新的所有者信息
@@ -1368,7 +1351,7 @@ router.put('/api-keys/:keyId', authenticateAdmin, async (req, res) => {
           logger.info(`🔄 Admin reassigning API key ${keyId} to user ${user.username}`)
         } catch (error) {
           logger.error('Error fetching user for owner reassignment:', error)
-          return res.status(400).json({ error: 'Invalid owner ID' })
+          return StandardResponses.validationError(res, null, "Invalid owner ID")
         }
       } else {
         // 清空所有者（分配给Admin）
@@ -1384,7 +1367,7 @@ router.put('/api-keys/:keyId', authenticateAdmin, async (req, res) => {
     return res.json({ success: true, message: 'API key updated successfully' })
   } catch (error) {
     logger.error('❌ Failed to update API key:', error)
-    return res.status(500).json({ error: 'Failed to update API key', message: error.message })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -1397,7 +1380,7 @@ router.patch('/api-keys/:keyId/expiration', authenticateAdmin, async (req, res) 
     // 获取当前API Key信息
     const keyData = await redis.getApiKey(keyId)
     if (!keyData || Object.keys(keyData).length === 0) {
-      return res.status(404).json({ error: 'API key not found' })
+      return StandardResponses.notFound(res)
     }
 
     const updates = {}
@@ -1430,7 +1413,7 @@ router.patch('/api-keys/:keyId/expiration', authenticateAdmin, async (req, res) 
     if (expiresAt !== undefined && activateNow !== true) {
       // 验证过期时间格式
       if (expiresAt && isNaN(Date.parse(expiresAt))) {
-        return res.status(400).json({ error: 'Invalid expiration date format' })
+        return StandardResponses.validationError(res, null, "Invalid expiration date format")
       }
 
       // 如果设置了过期时间，确保key是激活状态
@@ -1448,7 +1431,7 @@ router.patch('/api-keys/:keyId/expiration', authenticateAdmin, async (req, res) 
     }
 
     if (Object.keys(updates).length === 0) {
-      return res.status(400).json({ error: 'No valid updates provided' })
+      return StandardResponses.validationError(res, null, "No valid updates provided")
     }
 
     // 更新API Key
@@ -1462,10 +1445,7 @@ router.patch('/api-keys/:keyId/expiration', authenticateAdmin, async (req, res) 
     })
   } catch (error) {
     logger.error('❌ Failed to update API key expiration:', error)
-    return res.status(500).json({
-      error: 'Failed to update API key expiration',
-      message: error.message
-    })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -1564,10 +1544,7 @@ router.delete('/api-keys/batch', authenticateAdmin, async (req, res) => {
     })
   } catch (error) {
     logger.error('❌ Failed to batch delete API keys:', error)
-    return res.status(500).json({
-      error: 'Batch delete failed',
-      message: error.message
-    })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -1582,7 +1559,7 @@ router.delete('/api-keys/:keyId', authenticateAdmin, async (req, res) => {
     return res.json({ success: true, message: 'API key deleted successfully' })
   } catch (error) {
     logger.error('❌ Failed to delete API key:', error)
-    return res.status(500).json({ error: 'Failed to delete API key', message: error.message })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -1650,11 +1627,7 @@ router.post('/api-keys/:keyId/restore', authenticateAdmin, async (req, res) => {
       })
     }
 
-    return res.status(500).json({
-      success: false,
-      error: '恢复 API Key 失败',
-      message: error.message
-    })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -1689,11 +1662,7 @@ router.delete('/api-keys/:keyId/permanent', authenticateAdmin, async (req, res) 
       })
     }
 
-    return res.status(500).json({
-      success: false,
-      error: '彻底删除 API Key 失败',
-      message: error.message
-    })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -1721,11 +1690,7 @@ router.delete('/api-keys/deleted/clear-all', authenticateAdmin, async (req, res)
     })
   } catch (error) {
     logger.error('❌ Failed to clear all deleted API keys:', error)
-    return res.status(500).json({
-      success: false,
-      error: '清空已删除的 API Keys 失败',
-      message: error.message
-    })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -1757,7 +1722,7 @@ router.get('/account-groups', authenticateAdmin, async (req, res) => {
     return res.json({ success: true, data: groups })
   } catch (error) {
     logger.error('❌ Failed to get account groups:', error)
-    return res.status(500).json({ error: error.message })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -1768,13 +1733,13 @@ router.get('/account-groups/:groupId', authenticateAdmin, async (req, res) => {
     const group = await accountGroupService.getGroup(groupId)
 
     if (!group) {
-      return res.status(404).json({ error: '分组不存在' })
+      return StandardResponses.notFound(res)
     }
 
     return res.json({ success: true, data: group })
   } catch (error) {
     logger.error('❌ Failed to get account group:', error)
-    return res.status(500).json({ error: error.message })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -1811,7 +1776,7 @@ router.get('/account-groups/:groupId/members', authenticateAdmin, async (req, re
     const group = await accountGroupService.getGroup(groupId)
 
     if (!group) {
-      return res.status(404).json({ error: '分组不存在' })
+      return StandardResponses.notFound(res)
     }
 
     const memberIds = await accountGroupService.getGroupMembers(groupId)
@@ -1865,7 +1830,7 @@ router.get('/account-groups/:groupId/members', authenticateAdmin, async (req, re
     return res.json({ success: true, data: members })
   } catch (error) {
     logger.error('❌ Failed to get group members:', error)
-    return res.status(500).json({ error: error.message })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -1905,7 +1870,7 @@ router.post('/claude-accounts/generate-auth-url', authenticateAdmin, async (req,
     })
   } catch (error) {
     logger.error('❌ Failed to generate OAuth URL:', error)
-    return res.status(500).json({ error: 'Failed to generate OAuth URL', message: error.message })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -1923,7 +1888,7 @@ router.post('/claude-accounts/exchange-code', authenticateAdmin, async (req, res
     // 从Redis获取OAuth会话信息
     const oauthSession = await redis.getOAuthSession(sessionId)
     if (!oauthSession) {
-      return res.status(400).json({ error: 'Invalid or expired OAuth session' })
+      return StandardResponses.validationError(res, null, "Invalid or expired OAuth session")
     }
 
     // 检查会话是否过期
@@ -2040,12 +2005,12 @@ router.post('/claude-accounts/exchange-setup-token-code', authenticateAdmin, asy
     // 从Redis获取OAuth会话信息
     const oauthSession = await redis.getOAuthSession(sessionId)
     if (!oauthSession) {
-      return res.status(400).json({ error: 'Invalid or expired OAuth session' })
+      return StandardResponses.validationError(res, null, "Invalid or expired OAuth session")
     }
 
     // 检查是否是setup-token类型
     if (oauthSession.type !== 'setup-token') {
-      return res.status(400).json({ error: 'Invalid session type for setup token exchange' })
+      return StandardResponses.validationError(res, null, "Invalid session type for setup token exchange")
     }
 
     // 检查会话是否过期
@@ -2239,7 +2204,7 @@ router.get('/claude-accounts', authenticateAdmin, async (req, res) => {
     return res.json({ success: true, data: accountsWithStats })
   } catch (error) {
     logger.error('❌ Failed to get Claude accounts:', error)
-    return res.status(500).json({ error: 'Failed to get Claude accounts', message: error.message })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -2309,7 +2274,7 @@ router.get('/claude-accounts/usage', authenticateAdmin, async (req, res) => {
     res.json({ success: true, data: usageMap })
   } catch (error) {
     logger.error('❌ Failed to fetch Claude accounts usage:', error)
-    res.status(500).json({ error: 'Failed to fetch usage data', message: error.message })
+    StandardResponses.internalError(res, error)
   }
 })
 
@@ -2338,7 +2303,7 @@ router.post('/claude-accounts', authenticateAdmin, async (req, res) => {
     } = req.body
 
     if (!name) {
-      return res.status(400).json({ error: 'Name is required' })
+      return StandardResponses.validationError(res, null, "Name is required")
     }
 
     // 验证accountType的有效性
@@ -2360,7 +2325,7 @@ router.post('/claude-accounts', authenticateAdmin, async (req, res) => {
       priority !== undefined &&
       (typeof priority !== 'number' || priority < 1 || priority > 100)
     ) {
-      return res.status(400).json({ error: 'Priority must be a number between 1 and 100' })
+      return StandardResponses.validationError(res, null, "Priority must be a number between 1 and 100")
     }
 
     const newAccount = await claudeAccountService.createAccount({
@@ -2420,7 +2385,7 @@ router.put('/claude-accounts/:accountId', authenticateAdmin, async (req, res) =>
         mappedUpdates.priority < 1 ||
         mappedUpdates.priority > 100)
     ) {
-      return res.status(400).json({ error: 'Priority must be a number between 1 and 100' })
+      return StandardResponses.validationError(res, null, "Priority must be a number between 1 and 100")
     }
 
     // 验证accountType的有效性
@@ -2447,7 +2412,7 @@ router.put('/claude-accounts/:accountId', authenticateAdmin, async (req, res) =>
     // 获取账户当前信息以处理分组变更
     const currentAccount = await claudeAccountService.getAccount(accountId)
     if (!currentAccount) {
-      return res.status(404).json({ error: 'Account not found' })
+      return StandardResponses.notFound(res)
     }
 
     // 处理分组的变更
@@ -2576,7 +2541,7 @@ router.post('/claude-accounts/:accountId/refresh', authenticateAdmin, async (req
     return res.json({ success: true, data: result })
   } catch (error) {
     logger.error('❌ Failed to refresh Claude account token:', error)
-    return res.status(500).json({ error: 'Failed to refresh token', message: error.message })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -2591,7 +2556,7 @@ router.post('/claude-accounts/:accountId/reset-status', authenticateAdmin, async
     return res.json({ success: true, data: result })
   } catch (error) {
     logger.error('❌ Failed to reset Claude account status:', error)
-    return res.status(500).json({ error: 'Failed to reset status', message: error.message })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -2607,7 +2572,7 @@ router.put(
       const account = accounts.find((acc) => acc.id === accountId)
 
       if (!account) {
-        return res.status(404).json({ error: 'Account not found' })
+        return StandardResponses.notFound(res)
       }
 
       const newSchedulable = !account.schedulable
@@ -2761,12 +2726,12 @@ router.post('/claude-console-accounts', authenticateAdmin, async (req, res) => {
     } = req.body
 
     if (!name || !apiUrl || !apiKey) {
-      return res.status(400).json({ error: 'Name, API URL and API Key are required' })
+      return StandardResponses.validationError(res, null, "Name, API URL and API Key are required")
     }
 
     // 验证priority的有效性（1-100）
     if (priority !== undefined && (priority < 1 || priority > 100)) {
-      return res.status(400).json({ error: 'Priority must be between 1 and 100' })
+      return StandardResponses.validationError(res, null, "Priority must be between 1 and 100")
     }
 
     // 验证accountType的有效性
@@ -2778,7 +2743,7 @@ router.post('/claude-console-accounts', authenticateAdmin, async (req, res) => {
 
     // 如果是分组类型，验证groupId
     if (accountType === 'group' && !groupId) {
-      return res.status(400).json({ error: 'Group ID is required for group type accounts' })
+      return StandardResponses.validationError(res, null, "Group ID is required for group type accounts")
     }
 
     const newAccount = await claudeConsoleAccountService.createAccount({
@@ -2827,7 +2792,7 @@ router.put('/claude-console-accounts/:accountId', authenticateAdmin, async (req,
       mappedUpdates.priority !== undefined &&
       (mappedUpdates.priority < 1 || mappedUpdates.priority > 100)
     ) {
-      return res.status(400).json({ error: 'Priority must be between 1 and 100' })
+      return StandardResponses.validationError(res, null, "Priority must be between 1 and 100")
     }
 
     // 验证accountType的有效性
@@ -2842,13 +2807,13 @@ router.put('/claude-console-accounts/:accountId', authenticateAdmin, async (req,
 
     // 如果更新为分组类型，验证groupId
     if (mappedUpdates.accountType === 'group' && !mappedUpdates.groupId) {
-      return res.status(400).json({ error: 'Group ID is required for group type accounts' })
+      return StandardResponses.validationError(res, null, "Group ID is required for group type accounts")
     }
 
     // 获取账户当前信息以处理分组变更
     const currentAccount = await claudeConsoleAccountService.getAccount(accountId)
     if (!currentAccount) {
-      return res.status(404).json({ error: 'Account not found' })
+      return StandardResponses.notFound(res)
     }
 
     // 处理分组的变更
@@ -2937,7 +2902,7 @@ router.put('/claude-console-accounts/:accountId/toggle', authenticateAdmin, asyn
 
     const account = await claudeConsoleAccountService.getAccount(accountId)
     if (!account) {
-      return res.status(404).json({ error: 'Account not found' })
+      return StandardResponses.notFound(res)
     }
 
     const newStatus = !account.isActive
@@ -2967,7 +2932,7 @@ router.put(
 
       const account = await claudeConsoleAccountService.getAccount(accountId)
       if (!account) {
-        return res.status(404).json({ error: 'Account not found' })
+        return StandardResponses.notFound(res)
       }
 
       const newSchedulable = !account.schedulable
@@ -3008,13 +2973,13 @@ router.get('/claude-console-accounts/:accountId/usage', authenticateAdmin, async
     const usageStats = await claudeConsoleAccountService.getAccountUsageStats(accountId)
 
     if (!usageStats) {
-      return res.status(404).json({ error: 'Account not found' })
+      return StandardResponses.notFound(res)
     }
 
     return res.json(usageStats)
   } catch (error) {
     logger.error('❌ Failed to get Claude Console account usage stats:', error)
-    return res.status(500).json({ error: 'Failed to get usage stats', message: error.message })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -3031,7 +2996,7 @@ router.post(
       return res.json({ success: true, message: 'Daily usage reset successfully' })
     } catch (error) {
       logger.error('❌ Failed to reset Claude Console account daily usage:', error)
-      return res.status(500).json({ error: 'Failed to reset daily usage', message: error.message })
+      return StandardResponses.internalError(res, error)
     }
   }
 )
@@ -3048,7 +3013,7 @@ router.post(
       return res.json({ success: true, data: result })
     } catch (error) {
       logger.error('❌ Failed to reset Claude Console account status:', error)
-      return res.status(500).json({ error: 'Failed to reset status', message: error.message })
+      return StandardResponses.internalError(res, error)
     }
   }
 )
@@ -3161,7 +3126,7 @@ router.get('/ccr-accounts', authenticateAdmin, async (req, res) => {
     return res.json({ success: true, data: accountsWithStats })
   } catch (error) {
     logger.error('❌ Failed to get CCR accounts:', error)
-    return res.status(500).json({ error: 'Failed to get CCR accounts', message: error.message })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -3185,12 +3150,12 @@ router.post('/ccr-accounts', authenticateAdmin, async (req, res) => {
     } = req.body
 
     if (!name || !apiUrl || !apiKey) {
-      return res.status(400).json({ error: 'Name, API URL and API Key are required' })
+      return StandardResponses.validationError(res, null, "Name, API URL and API Key are required")
     }
 
     // 验证priority的有效性（1-100）
     if (priority !== undefined && (priority < 1 || priority > 100)) {
-      return res.status(400).json({ error: 'Priority must be between 1 and 100' })
+      return StandardResponses.validationError(res, null, "Priority must be between 1 and 100")
     }
 
     // 验证accountType的有效性
@@ -3202,7 +3167,7 @@ router.post('/ccr-accounts', authenticateAdmin, async (req, res) => {
 
     // 如果是分组类型，验证groupId
     if (accountType === 'group' && !groupId) {
-      return res.status(400).json({ error: 'Group ID is required for group type accounts' })
+      return StandardResponses.validationError(res, null, "Group ID is required for group type accounts")
     }
 
     const newAccount = await ccrAccountService.createAccount({
@@ -3231,7 +3196,7 @@ router.post('/ccr-accounts', authenticateAdmin, async (req, res) => {
     return res.json({ success: true, data: formattedAccount })
   } catch (error) {
     logger.error('❌ Failed to create CCR account:', error)
-    return res.status(500).json({ error: 'Failed to create CCR account', message: error.message })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -3249,7 +3214,7 @@ router.put('/ccr-accounts/:accountId', authenticateAdmin, async (req, res) => {
       mappedUpdates.priority !== undefined &&
       (mappedUpdates.priority < 1 || mappedUpdates.priority > 100)
     ) {
-      return res.status(400).json({ error: 'Priority must be between 1 and 100' })
+      return StandardResponses.validationError(res, null, "Priority must be between 1 and 100")
     }
 
     // 验证accountType的有效性
@@ -3264,13 +3229,13 @@ router.put('/ccr-accounts/:accountId', authenticateAdmin, async (req, res) => {
 
     // 如果更新为分组类型，验证groupId
     if (mappedUpdates.accountType === 'group' && !mappedUpdates.groupId) {
-      return res.status(400).json({ error: 'Group ID is required for group type accounts' })
+      return StandardResponses.validationError(res, null, "Group ID is required for group type accounts")
     }
 
     // 获取账户当前信息以处理分组变更
     const currentAccount = await ccrAccountService.getAccount(accountId)
     if (!currentAccount) {
-      return res.status(404).json({ error: 'Account not found' })
+      return StandardResponses.notFound(res)
     }
 
     // 处理分组的变更
@@ -3306,7 +3271,7 @@ router.put('/ccr-accounts/:accountId', authenticateAdmin, async (req, res) => {
     return res.json({ success: true, message: 'CCR account updated successfully' })
   } catch (error) {
     logger.error('❌ Failed to update CCR account:', error)
-    return res.status(500).json({ error: 'Failed to update CCR account', message: error.message })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -3343,7 +3308,7 @@ router.delete('/ccr-accounts/:accountId', authenticateAdmin, async (req, res) =>
     })
   } catch (error) {
     logger.error('❌ Failed to delete CCR account:', error)
-    return res.status(500).json({ error: 'Failed to delete CCR account', message: error.message })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -3354,7 +3319,7 @@ router.put('/ccr-accounts/:accountId/toggle', authenticateAdmin, async (req, res
 
     const account = await ccrAccountService.getAccount(accountId)
     if (!account) {
-      return res.status(404).json({ error: 'Account not found' })
+      return StandardResponses.notFound(res)
     }
 
     const newStatus = !account.isActive
@@ -3379,7 +3344,7 @@ router.put('/ccr-accounts/:accountId/toggle-schedulable', authenticateAdmin, asy
 
     const account = await ccrAccountService.getAccount(accountId)
     if (!account) {
-      return res.status(404).json({ error: 'Account not found' })
+      return StandardResponses.notFound(res)
     }
 
     const newSchedulable = !account.schedulable
@@ -3419,13 +3384,13 @@ router.get('/ccr-accounts/:accountId/usage', authenticateAdmin, async (req, res)
     const usageStats = await ccrAccountService.getAccountUsageStats(accountId)
 
     if (!usageStats) {
-      return res.status(404).json({ error: 'Account not found' })
+      return StandardResponses.notFound(res)
     }
 
     return res.json(usageStats)
   } catch (error) {
     logger.error('❌ Failed to get CCR account usage stats:', error)
-    return res.status(500).json({ error: 'Failed to get usage stats', message: error.message })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -3439,7 +3404,7 @@ router.post('/ccr-accounts/:accountId/reset-usage', authenticateAdmin, async (re
     return res.json({ success: true, message: 'Daily usage reset successfully' })
   } catch (error) {
     logger.error('❌ Failed to reset CCR account daily usage:', error)
-    return res.status(500).json({ error: 'Failed to reset daily usage', message: error.message })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -3452,7 +3417,7 @@ router.post('/ccr-accounts/:accountId/reset-status', authenticateAdmin, async (r
     return res.json({ success: true, data: result })
   } catch (error) {
     logger.error('❌ Failed to reset CCR account status:', error)
-    return res.status(500).json({ error: 'Failed to reset status', message: error.message })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -3567,7 +3532,7 @@ router.get('/bedrock-accounts', authenticateAdmin, async (req, res) => {
     return res.json({ success: true, data: accountsWithStats })
   } catch (error) {
     logger.error('❌ Failed to get Bedrock accounts:', error)
-    return res.status(500).json({ error: 'Failed to get Bedrock accounts', message: error.message })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -3586,12 +3551,12 @@ router.post('/bedrock-accounts', authenticateAdmin, async (req, res) => {
     } = req.body
 
     if (!name) {
-      return res.status(400).json({ error: 'Name is required' })
+      return StandardResponses.validationError(res, null, "Name is required")
     }
 
     // 验证priority的有效性（1-100）
     if (priority !== undefined && (priority < 1 || priority > 100)) {
-      return res.status(400).json({ error: 'Priority must be between 1 and 100' })
+      return StandardResponses.validationError(res, null, "Priority must be between 1 and 100")
     }
 
     // 验证accountType的有效性
@@ -3650,7 +3615,7 @@ router.put('/bedrock-accounts/:accountId', authenticateAdmin, async (req, res) =
       mappedUpdates.priority !== undefined &&
       (mappedUpdates.priority < 1 || mappedUpdates.priority > 100)
     ) {
-      return res.status(400).json({ error: 'Priority must be between 1 and 100' })
+      return StandardResponses.validationError(res, null, "Priority must be between 1 and 100")
     }
 
     // 验证accountType的有效性
@@ -3730,7 +3695,7 @@ router.put('/bedrock-accounts/:accountId/toggle', authenticateAdmin, async (req,
 
     const accountResult = await bedrockAccountService.getAccount(accountId)
     if (!accountResult.success) {
-      return res.status(404).json({ error: 'Account not found' })
+      return StandardResponses.notFound(res)
     }
 
     const newStatus = !accountResult.data.isActive
@@ -3768,7 +3733,7 @@ router.put(
 
       const accountResult = await bedrockAccountService.getAccount(accountId)
       if (!accountResult.success) {
-        return res.status(404).json({ error: 'Account not found' })
+        return StandardResponses.notFound(res)
       }
 
       const newSchedulable = !accountResult.data.schedulable
@@ -3818,14 +3783,14 @@ router.post('/bedrock-accounts/:accountId/test', authenticateAdmin, async (req, 
     const result = await bedrockAccountService.testAccount(accountId)
 
     if (!result.success) {
-      return res.status(500).json({ error: 'Account test failed', message: result.error })
+      return StandardResponses.internalError(res, error)
     }
 
     logger.success(`🧪 Admin tested Bedrock account: ${accountId} - ${result.data.status}`)
     return res.json({ success: true, data: result.data })
   } catch (error) {
     logger.error('❌ Failed to test Bedrock account:', error)
-    return res.status(500).json({ error: 'Failed to test Bedrock account', message: error.message })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -3869,7 +3834,7 @@ router.post('/gemini-accounts/generate-auth-url', authenticateAdmin, async (req,
     })
   } catch (error) {
     logger.error('❌ Failed to generate Gemini auth URL:', error)
-    return res.status(500).json({ error: 'Failed to generate auth URL', message: error.message })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -3879,7 +3844,7 @@ router.post('/gemini-accounts/poll-auth-status', authenticateAdmin, async (req, 
     const { sessionId } = req.body
 
     if (!sessionId) {
-      return res.status(400).json({ error: 'Session ID is required' })
+      return StandardResponses.validationError(res, null, "Session ID is required")
     }
 
     const result = await geminiAccountService.pollAuthorizationStatus(sessionId)
@@ -3892,7 +3857,7 @@ router.post('/gemini-accounts/poll-auth-status', authenticateAdmin, async (req, 
     }
   } catch (error) {
     logger.error('❌ Failed to poll Gemini auth status:', error)
-    return res.status(500).json({ error: 'Failed to poll auth status', message: error.message })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -3902,7 +3867,7 @@ router.post('/gemini-accounts/exchange-code', authenticateAdmin, async (req, res
     const { code, sessionId, proxy: requestProxy } = req.body
 
     if (!code) {
-      return res.status(400).json({ error: 'Authorization code is required' })
+      return StandardResponses.validationError(res, null, "Authorization code is required")
     }
 
     let redirectUri = 'https://codeassist.google.com/authcode'
@@ -3951,7 +3916,7 @@ router.post('/gemini-accounts/exchange-code', authenticateAdmin, async (req, res
     return res.json({ success: true, data: { tokens } })
   } catch (error) {
     logger.error('❌ Failed to exchange Gemini authorization code:', error)
-    return res.status(500).json({ error: 'Failed to exchange code', message: error.message })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -4043,7 +4008,7 @@ router.get('/gemini-accounts', authenticateAdmin, async (req, res) => {
     return res.json({ success: true, data: accountsWithStats })
   } catch (error) {
     logger.error('❌ Failed to get Gemini accounts:', error)
-    return res.status(500).json({ error: 'Failed to get accounts', message: error.message })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -4054,7 +4019,7 @@ router.post('/gemini-accounts', authenticateAdmin, async (req, res) => {
 
     // 输入验证
     if (!accountData.name) {
-      return res.status(400).json({ error: 'Account name is required' })
+      return StandardResponses.validationError(res, null, "Account name is required")
     }
 
     // 验证accountType的有效性
@@ -4069,7 +4034,7 @@ router.post('/gemini-accounts', authenticateAdmin, async (req, res) => {
 
     // 如果是分组类型，验证groupId
     if (accountData.accountType === 'group' && !accountData.groupId) {
-      return res.status(400).json({ error: 'Group ID is required for group type accounts' })
+      return StandardResponses.validationError(res, null, "Group ID is required for group type accounts")
     }
 
     const newAccount = await geminiAccountService.createAccount(accountData)
@@ -4084,7 +4049,7 @@ router.post('/gemini-accounts', authenticateAdmin, async (req, res) => {
     return res.json({ success: true, data: formattedAccount })
   } catch (error) {
     logger.error('❌ Failed to create Gemini account:', error)
-    return res.status(500).json({ error: 'Failed to create account', message: error.message })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -4103,13 +4068,13 @@ router.put('/gemini-accounts/:accountId', authenticateAdmin, async (req, res) =>
 
     // 如果更新为分组类型，验证groupId
     if (updates.accountType === 'group' && !updates.groupId) {
-      return res.status(400).json({ error: 'Group ID is required for group type accounts' })
+      return StandardResponses.validationError(res, null, "Group ID is required for group type accounts")
     }
 
     // 获取账户当前信息以处理分组变更
     const currentAccount = await geminiAccountService.getAccount(accountId)
     if (!currentAccount) {
-      return res.status(404).json({ error: 'Account not found' })
+      return StandardResponses.notFound(res)
     }
 
     // ✅ 【新增】映射字段名：前端的 expiresAt -> 后端的 subscriptionExpiresAt
@@ -4148,7 +4113,7 @@ router.put('/gemini-accounts/:accountId', authenticateAdmin, async (req, res) =>
     return res.json({ success: true, data: updatedAccount })
   } catch (error) {
     logger.error('❌ Failed to update Gemini account:', error)
-    return res.status(500).json({ error: 'Failed to update account', message: error.message })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -4184,7 +4149,7 @@ router.delete('/gemini-accounts/:accountId', authenticateAdmin, async (req, res)
     })
   } catch (error) {
     logger.error('❌ Failed to delete Gemini account:', error)
-    return res.status(500).json({ error: 'Failed to delete account', message: error.message })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -4199,7 +4164,7 @@ router.post('/gemini-accounts/:accountId/refresh', authenticateAdmin, async (req
     return res.json({ success: true, data: result })
   } catch (error) {
     logger.error('❌ Failed to refresh Gemini account token:', error)
-    return res.status(500).json({ error: 'Failed to refresh token', message: error.message })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -4213,7 +4178,7 @@ router.put(
 
       const account = await geminiAccountService.getAccount(accountId)
       if (!account) {
-        return res.status(404).json({ error: 'Account not found' })
+        return StandardResponses.notFound(res)
       }
 
       // 现在 account.schedulable 已经是布尔值了，直接取反即可
@@ -4281,11 +4246,7 @@ router.get('/accounts/usage-stats', authenticateAdmin, async (req, res) => {
     })
   } catch (error) {
     logger.error('❌ Failed to get accounts usage stats:', error)
-    return res.status(500).json({
-      success: false,
-      error: 'Failed to get accounts usage stats',
-      message: error.message
-    })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -4320,11 +4281,7 @@ router.get('/accounts/:accountId/usage-stats', authenticateAdmin, async (req, re
     })
   } catch (error) {
     logger.error('❌ Failed to get account usage stats:', error)
-    return res.status(500).json({
-      success: false,
-      error: 'Failed to get account usage stats',
-      message: error.message
-    })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -4569,11 +4526,7 @@ router.get('/accounts/:accountId/usage-history', authenticateAdmin, async (req, 
     })
   } catch (error) {
     logger.error('❌ Failed to get account usage history:', error)
-    return res.status(500).json({
-      success: false,
-      error: 'Failed to get account usage history',
-      message: error.message
-    })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -5032,7 +4985,7 @@ router.get('/dashboard', authenticateAdmin, async (req, res) => {
     return res.json({ success: true, data: dashboard })
   } catch (error) {
     logger.error('❌ Failed to get dashboard data:', error)
-    return res.status(500).json({ error: 'Failed to get dashboard data', message: error.message })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -5053,7 +5006,7 @@ router.get('/usage-stats', authenticateAdmin, async (req, res) => {
     return res.json({ success: true, data: { period, stats } })
   } catch (error) {
     logger.error('❌ Failed to get usage stats:', error)
-    return res.status(500).json({ error: 'Failed to get usage stats', message: error.message })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -5084,13 +5037,13 @@ router.get('/model-stats', authenticateAdmin, async (req, res) => {
 
       // 确保日期范围有效
       if (start > end) {
-        return res.status(400).json({ error: 'Start date must be before or equal to end date' })
+        return StandardResponses.validationError(res, null, "Start date must be before or equal to end date")
       }
 
       // 限制最大范围为365天
       const daysDiff = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1
       if (daysDiff > 365) {
-        return res.status(400).json({ error: 'Date range cannot exceed 365 days' })
+        return StandardResponses.validationError(res, null, "Date range cannot exceed 365 days")
       }
 
       // 生成日期范围内所有日期的搜索模式
@@ -5230,7 +5183,7 @@ router.get('/model-stats', authenticateAdmin, async (req, res) => {
     return res.json({ success: true, data: modelStats })
   } catch (error) {
     logger.error('❌ Failed to get model stats:', error)
-    return res.status(500).json({ error: 'Failed to get model stats', message: error.message })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -5260,7 +5213,7 @@ router.post('/cleanup', authenticateAdmin, async (req, res) => {
     })
   } catch (error) {
     logger.error('❌ Cleanup failed:', error)
-    return res.status(500).json({ error: 'Cleanup failed', message: error.message })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -5297,9 +5250,7 @@ router.get('/usage-trend', authenticateAdmin, async (req, res) => {
       // 确保时间范围不超过24小时
       const timeDiff = endTime - startTime
       if (timeDiff > 24 * 60 * 60 * 1000) {
-        return res.status(400).json({
-          error: '小时粒度查询时间范围不能超过24小时'
-        })
+        return StandardResponses.validationError(res, null, "小时粒度查询时间范围不能超过24小时")
       }
 
       // 按小时遍历
@@ -5520,7 +5471,7 @@ router.get('/usage-trend', authenticateAdmin, async (req, res) => {
     return res.json({ success: true, data: trendData, granularity })
   } catch (error) {
     logger.error('❌ Failed to get usage trend:', error)
-    return res.status(500).json({ error: 'Failed to get usage trend', message: error.message })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -5551,13 +5502,13 @@ router.get('/api-keys/:keyId/model-stats', authenticateAdmin, async (req, res) =
 
       // 确保日期范围有效
       if (start > end) {
-        return res.status(400).json({ error: 'Start date must be before or equal to end date' })
+        return StandardResponses.validationError(res, null, "Start date must be before or equal to end date")
       }
 
       // 限制最大范围为365天
       const daysDiff = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1
       if (daysDiff > 365) {
-        return res.status(400).json({ error: 'Date range cannot exceed 365 days' })
+        return StandardResponses.validationError(res, null, "Date range cannot exceed 365 days")
       }
 
       // 生成日期范围内所有日期的搜索模式
@@ -6994,7 +6945,7 @@ router.get('/oem-settings', async (req, res) => {
     })
   } catch (error) {
     logger.error('❌ Failed to get OEM settings:', error)
-    return res.status(500).json({ error: 'Failed to get OEM settings', message: error.message })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -7005,17 +6956,17 @@ router.put('/oem-settings', authenticateAdmin, async (req, res) => {
 
     // 验证输入
     if (!siteName || typeof siteName !== 'string' || siteName.trim().length === 0) {
-      return res.status(400).json({ error: 'Site name is required' })
+      return StandardResponses.validationError(res, null, "Site name is required")
     }
 
     if (siteName.length > 100) {
-      return res.status(400).json({ error: 'Site name must be less than 100 characters' })
+      return StandardResponses.validationError(res, null, "Site name must be less than 100 characters")
     }
 
     // 验证图标数据大小（如果是base64）
     if (siteIconData && siteIconData.length > 500000) {
       // 约375KB
-      return res.status(400).json({ error: 'Icon file must be less than 350KB' })
+      return StandardResponses.validationError(res, null, "Icon file must be less than 350KB")
     }
 
     // 验证图标URL（如果提供）
@@ -7024,7 +6975,7 @@ router.put('/oem-settings', authenticateAdmin, async (req, res) => {
       try {
         new URL(siteIcon)
       } catch (err) {
-        return res.status(400).json({ error: 'Invalid icon URL format' })
+        return StandardResponses.validationError(res, null, "Invalid icon URL format")
       }
     }
 
@@ -7048,7 +6999,7 @@ router.put('/oem-settings', authenticateAdmin, async (req, res) => {
     })
   } catch (error) {
     logger.error('❌ Failed to update OEM settings:', error)
-    return res.status(500).json({ error: 'Failed to update OEM settings', message: error.message })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -7131,11 +7082,7 @@ router.post('/openai-accounts/generate-auth-url', authenticateAdmin, async (req,
     })
   } catch (error) {
     logger.error('生成 OpenAI OAuth URL 失败:', error)
-    return res.status(500).json({
-      success: false,
-      message: '生成授权链接失败',
-      error: error.message
-    })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -7251,11 +7198,7 @@ router.post('/openai-accounts/exchange-code', authenticateAdmin, async (req, res
     })
   } catch (error) {
     logger.error('OpenAI OAuth token exchange failed:', error)
-    return res.status(500).json({
-      success: false,
-      message: '交换授权码失败',
-      error: error.message
-    })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -7341,11 +7284,7 @@ router.get('/openai-accounts', authenticateAdmin, async (req, res) => {
     })
   } catch (error) {
     logger.error('获取 OpenAI 账户列表失败:', error)
-    return res.status(500).json({
-      success: false,
-      message: '获取账户列表失败',
-      error: error.message
-    })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -7491,11 +7430,7 @@ router.post('/openai-accounts', authenticateAdmin, async (req, res) => {
     })
   } catch (error) {
     logger.error('创建 OpenAI 账户失败:', error)
-    return res.status(500).json({
-      success: false,
-      message: '创建账户失败',
-      error: error.message
-    })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -7522,13 +7457,13 @@ router.put('/openai-accounts/:id', authenticateAdmin, async (req, res) => {
 
     // 如果更新为分组类型，验证groupId
     if (mappedUpdates.accountType === 'group' && !mappedUpdates.groupId) {
-      return res.status(400).json({ error: 'Group ID is required for group type accounts' })
+      return StandardResponses.validationError(res, null, "Group ID is required for group type accounts")
     }
 
     // 获取账户当前信息以处理分组变更
     const currentAccount = await openaiAccountService.getAccount(id)
     if (!currentAccount) {
-      return res.status(404).json({ error: 'Account not found' })
+      return StandardResponses.notFound(res)
     }
 
     // 如果更新了 Refresh Token，需要验证其有效性
@@ -7689,7 +7624,7 @@ router.put('/openai-accounts/:id', authenticateAdmin, async (req, res) => {
     return res.json({ success: true, data: updatedAccount })
   } catch (error) {
     logger.error('❌ Failed to update OpenAI account:', error)
-    return res.status(500).json({ error: 'Failed to update account', message: error.message })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -7735,11 +7670,7 @@ router.delete('/openai-accounts/:id', authenticateAdmin, async (req, res) => {
     })
   } catch (error) {
     logger.error('删除 OpenAI 账户失败:', error)
-    return res.status(500).json({
-      success: false,
-      message: '删除账户失败',
-      error: error.message
-    })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -7773,11 +7704,7 @@ router.put('/openai-accounts/:id/toggle', authenticateAdmin, async (req, res) =>
     })
   } catch (error) {
     logger.error('切换 OpenAI 账户状态失败:', error)
-    return res.status(500).json({
-      success: false,
-      message: '切换账户状态失败',
-      error: error.message
-    })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -7792,7 +7719,7 @@ router.post('/openai-accounts/:accountId/reset-status', authenticateAdmin, async
     return res.json({ success: true, data: result })
   } catch (error) {
     logger.error('❌ Failed to reset OpenAI account status:', error)
-    return res.status(500).json({ error: 'Failed to reset status', message: error.message })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -7830,11 +7757,7 @@ router.put(
       })
     } catch (error) {
       logger.error('切换 OpenAI 账户调度状态失败:', error)
-      return res.status(500).json({
-        success: false,
-        message: '切换调度状态失败',
-        error: error.message
-      })
+      return StandardResponses.internalError(res, error)
     }
   }
 )
@@ -7924,11 +7847,7 @@ router.get('/azure-openai-accounts', authenticateAdmin, async (req, res) => {
     })
   } catch (error) {
     logger.error('Failed to fetch Azure OpenAI accounts:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch accounts',
-      error: error.message
-    })
+    StandardResponses.internalError(res, error)
   }
 })
 
@@ -8046,11 +7965,7 @@ router.post('/azure-openai-accounts', authenticateAdmin, async (req, res) => {
     })
   } catch (error) {
     logger.error('Failed to create Azure OpenAI account:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Failed to create account',
-      error: error.message
-    })
+    StandardResponses.internalError(res, error)
   }
 })
 
@@ -8072,11 +7987,7 @@ router.put('/azure-openai-accounts/:id', authenticateAdmin, async (req, res) => 
     })
   } catch (error) {
     logger.error('Failed to update Azure OpenAI account:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Failed to update account',
-      error: error.message
-    })
+    StandardResponses.internalError(res, error)
   }
 })
 
@@ -8104,11 +8015,7 @@ router.delete('/azure-openai-accounts/:id', authenticateAdmin, async (req, res) 
     })
   } catch (error) {
     logger.error('Failed to delete Azure OpenAI account:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Failed to delete account',
-      error: error.message
-    })
+    StandardResponses.internalError(res, error)
   }
 })
 
@@ -8135,11 +8042,7 @@ router.put('/azure-openai-accounts/:id/toggle', authenticateAdmin, async (req, r
     })
   } catch (error) {
     logger.error('Failed to toggle Azure OpenAI account status:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Failed to toggle account status',
-      error: error.message
-    })
+    StandardResponses.internalError(res, error)
   }
 })
 
@@ -8177,11 +8080,7 @@ router.put(
       })
     } catch (error) {
       logger.error('切换 Azure OpenAI 账户调度状态失败:', error)
-      return res.status(500).json({
-        success: false,
-        message: '切换调度状态失败',
-        error: error.message
-      })
+      return StandardResponses.internalError(res, error)
     }
   }
 )
@@ -8198,11 +8097,7 @@ router.post('/azure-openai-accounts/:id/health-check', authenticateAdmin, async 
     })
   } catch (error) {
     logger.error('Failed to perform health check:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Failed to perform health check',
-      error: error.message
-    })
+    StandardResponses.internalError(res, error)
   }
 })
 
@@ -8217,11 +8112,7 @@ router.post('/azure-openai-accounts/health-check-all', authenticateAdmin, async 
     })
   } catch (error) {
     logger.error('Failed to perform batch health check:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Failed to perform batch health check',
-      error: error.message
-    })
+    StandardResponses.internalError(res, error)
   }
 })
 
@@ -8236,11 +8127,7 @@ router.post('/migrate-api-keys-azure', authenticateAdmin, async (req, res) => {
     })
   } catch (error) {
     logger.error('Failed to migrate API keys:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Failed to migrate API keys',
-      error: error.message
-    })
+    StandardResponses.internalError(res, error)
   }
 })
 
@@ -8262,11 +8149,7 @@ router.get('/claude-code-version', authenticateAdmin, async (req, res) => {
     })
   } catch (error) {
     logger.error('❌ Get unified Claude Code User-Agent error:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Failed to get User-Agent information',
-      error: error.message
-    })
+    StandardResponses.internalError(res, error)
   }
 })
 
@@ -8286,11 +8169,7 @@ router.post('/claude-code-version/clear', authenticateAdmin, async (req, res) =>
     })
   } catch (error) {
     logger.error('❌ Clear unified User-Agent cache error:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Failed to clear cache',
-      error: error.message
-    })
+    StandardResponses.internalError(res, error)
   }
 })
 
@@ -8402,7 +8281,7 @@ router.get('/openai-responses-accounts', authenticateAdmin, async (req, res) => 
     res.json({ success: true, data: accountsWithStats })
   } catch (error) {
     logger.error('Failed to get OpenAI-Responses accounts:', error)
-    res.status(500).json({ success: false, message: error.message })
+    StandardResponses.internalError(res, error)
   }
 })
 
@@ -8414,10 +8293,7 @@ router.post('/openai-responses-accounts', authenticateAdmin, async (req, res) =>
     res.json({ success: true, data: formattedAccount })
   } catch (error) {
     logger.error('Failed to create OpenAI-Responses account:', error)
-    res.status(500).json({
-      success: false,
-      error: error.message
-    })
+    StandardResponses.internalError(res, error)
   }
 })
 
@@ -8451,10 +8327,7 @@ router.put('/openai-responses-accounts/:id', authenticateAdmin, async (req, res)
     res.json({ success: true, ...result })
   } catch (error) {
     logger.error('Failed to update OpenAI-Responses account:', error)
-    res.status(500).json({
-      success: false,
-      error: error.message
-    })
+    StandardResponses.internalError(res, error)
   }
 })
 
@@ -8500,10 +8373,7 @@ router.delete('/openai-responses-accounts/:id', authenticateAdmin, async (req, r
     })
   } catch (error) {
     logger.error('Failed to delete OpenAI-Responses account:', error)
-    res.status(500).json({
-      success: false,
-      error: error.message
-    })
+    StandardResponses.internalError(res, error)
   }
 })
 
@@ -8535,10 +8405,7 @@ router.put(
       res.json(result)
     } catch (error) {
       logger.error('Failed to toggle OpenAI-Responses account schedulable status:', error)
-      res.status(500).json({
-        success: false,
-        error: error.message
-      })
+      StandardResponses.internalError(res, error)
     }
   }
 )
@@ -8567,10 +8434,7 @@ router.put('/openai-responses-accounts/:id/toggle', authenticateAdmin, async (re
     })
   } catch (error) {
     logger.error('Failed to toggle OpenAI-Responses account status:', error)
-    res.status(500).json({
-      success: false,
-      error: error.message
-    })
+    StandardResponses.internalError(res, error)
   }
 })
 
@@ -8597,10 +8461,7 @@ router.post(
       })
     } catch (error) {
       logger.error('Failed to reset OpenAI-Responses account rate limit:', error)
-      res.status(500).json({
-        success: false,
-        error: error.message
-      })
+      StandardResponses.internalError(res, error)
     }
   }
 )
@@ -8616,7 +8477,7 @@ router.post('/openai-responses-accounts/:id/reset-status', authenticateAdmin, as
     return res.json({ success: true, data: result })
   } catch (error) {
     logger.error('❌ Failed to reset OpenAI-Responses account status:', error)
-    return res.status(500).json({ error: 'Failed to reset status', message: error.message })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -8639,10 +8500,7 @@ router.post('/openai-responses-accounts/:id/reset-usage', authenticateAdmin, asy
     })
   } catch (error) {
     logger.error('Failed to reset OpenAI-Responses account usage:', error)
-    res.status(500).json({
-      success: false,
-      error: error.message
-    })
+    StandardResponses.internalError(res, error)
   }
 })
 
@@ -8689,7 +8547,7 @@ router.post('/droid-accounts/generate-auth-url', authenticateAdmin, async (req, 
     const message =
       error instanceof WorkOSDeviceAuthError ? error.message : error.message || '未知错误'
     logger.error('❌ 生成 Droid 设备码授权失败:', message)
-    return res.status(500).json({ error: 'Failed to start Droid device authorization', message })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -8698,12 +8556,12 @@ router.post('/droid-accounts/exchange-code', authenticateAdmin, async (req, res)
   const { sessionId, proxy } = req.body || {}
   try {
     if (!sessionId) {
-      return res.status(400).json({ error: 'Session ID is required' })
+      return StandardResponses.validationError(res, null, "Session ID is required")
     }
 
     const oauthSession = await redis.getOAuthSession(sessionId)
     if (!oauthSession) {
-      return res.status(400).json({ error: 'Invalid or expired OAuth session' })
+      return StandardResponses.validationError(res, null, "Invalid or expired OAuth session")
     }
 
     if (oauthSession.expiresAt && new Date() > new Date(oauthSession.expiresAt)) {
@@ -8715,7 +8573,7 @@ router.post('/droid-accounts/exchange-code', authenticateAdmin, async (req, res)
 
     if (!oauthSession.deviceCode) {
       await redis.deleteOAuthSession(sessionId)
-      return res.status(400).json({ error: 'OAuth session missing device code, please retry' })
+      return StandardResponses.validationError(res, null, "OAuth session missing device code, please retry")
     }
 
     const proxyConfig = proxy || oauthSession.proxy || null
@@ -8754,18 +8612,11 @@ router.post('/droid-accounts/exchange-code', authenticateAdmin, async (req, res)
       }
 
       logger.error('❌ Droid 授权失败:', error.message)
-      return res.status(500).json({
-        error: 'Failed to exchange Droid authorization code',
-        message: error.message,
-        errorCode: error.code
-      })
+      return StandardResponses.internalError(res, error)
     }
 
     logger.error('❌ 交换 Droid 授权码失败:', error)
-    return res.status(500).json({
-      error: 'Failed to exchange Droid authorization code',
-      message: error.message
-    })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -8838,7 +8689,7 @@ router.get('/droid-accounts', authenticateAdmin, async (req, res) => {
     return res.json({ success: true, data: accountsWithStats })
   } catch (error) {
     logger.error('Failed to get Droid accounts:', error)
-    return res.status(500).json({ error: 'Failed to get Droid accounts', message: error.message })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -8931,11 +8782,7 @@ router.post('/droid-accounts', authenticateAdmin, async (req, res) => {
         } catch (cleanupError) {
           logger.error(`Failed to cleanup Droid account ${account.id}:`, cleanupError)
         }
-        return res.status(500).json({
-          error: '系统错误',
-          message: `账户创建成功，但绑定分组失败：${groupError.message}`,
-          type: 'group_binding_error'
-        })
+        return StandardResponses.internalError(res, error)
       }
     }
 
@@ -8977,7 +8824,7 @@ router.put('/droid-accounts/:id', authenticateAdmin, async (req, res) => {
     const { accountType: rawAccountType, groupId, groupIds } = mappedUpdates
 
     if (rawAccountType && !['shared', 'dedicated', 'group'].includes(rawAccountType)) {
-      return res.status(400).json({ error: '账户类型必须是 shared、dedicated 或 group' })
+      return StandardResponses.validationError(res, null, "账户类型必须是 shared、dedicated 或 group")
     }
 
     if (
@@ -8985,12 +8832,12 @@ router.put('/droid-accounts/:id', authenticateAdmin, async (req, res) => {
       (!groupId || typeof groupId !== 'string' || !groupId.trim()) &&
       (!Array.isArray(groupIds) || groupIds.length === 0)
     ) {
-      return res.status(400).json({ error: '分组调度账户必须至少选择一个分组' })
+      return StandardResponses.validationError(res, null, "分组调度账户必须至少选择一个分组")
     }
 
     const currentAccount = await droidAccountService.getAccount(id)
     if (!currentAccount) {
-      return res.status(404).json({ error: 'Droid account not found' })
+      return StandardResponses.notFound(res)
     }
 
     const normalizedGroupIds = Array.isArray(groupIds)
@@ -9025,10 +8872,7 @@ router.put('/droid-accounts/:id', authenticateAdmin, async (req, res) => {
       }
     } catch (groupError) {
       logger.error(`Failed to update Droid account ${id} groups:`, groupError)
-      return res.status(500).json({
-        error: 'Failed to update Droid account groups',
-        message: groupError.message
-      })
+      return StandardResponses.internalError(res, error)
     }
 
     if (targetAccountType === 'group') {
@@ -9042,7 +8886,7 @@ router.put('/droid-accounts/:id', authenticateAdmin, async (req, res) => {
     return res.json({ success: true, data: account })
   } catch (error) {
     logger.error(`Failed to update Droid account ${req.params.id}:`, error)
-    return res.status(500).json({ error: 'Failed to update Droid account', message: error.message })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -9053,7 +8897,7 @@ router.put('/droid-accounts/:id/toggle-schedulable', authenticateAdmin, async (r
 
     const account = await droidAccountService.getAccount(id)
     if (!account) {
-      return res.status(404).json({ error: 'Droid account not found' })
+      return StandardResponses.notFound(res)
     }
 
     const currentSchedulable = account.schedulable === true || account.schedulable === 'true'
@@ -9189,10 +9033,7 @@ router.get('/droid-accounts/:id', authenticateAdmin, async (req, res) => {
     })
   } catch (error) {
     logger.error(`Failed to get Droid account ${req.params.id}:`, error)
-    return res.status(500).json({
-      error: 'Failed to get Droid account',
-      message: error.message
-    })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -9204,7 +9045,7 @@ router.delete('/droid-accounts/:id', authenticateAdmin, async (req, res) => {
     return res.json({ success: true, message: 'Droid account deleted successfully' })
   } catch (error) {
     logger.error(`Failed to delete Droid account ${req.params.id}:`, error)
-    return res.status(500).json({ error: 'Failed to delete Droid account', message: error.message })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -9234,10 +9075,7 @@ router.get('/droid-accounts/:id/balance', authenticateAdmin, async (req, res) =>
     })
   } catch (error) {
     logger.error('❌ Failed to check Droid account balance:', error)
-    return res.status(500).json({
-      error: 'Failed to check balance',
-      message: error.message
-    })
+    return StandardResponses.internalError(res, error)
   }
 })
 
@@ -9249,7 +9087,7 @@ router.post('/droid-accounts/:id/refresh-token', authenticateAdmin, async (req, 
     return res.json({ success: true, data: result })
   } catch (error) {
     logger.error(`Failed to refresh Droid account token ${req.params.id}:`, error)
-    return res.status(500).json({ error: 'Failed to refresh token', message: error.message })
+    return StandardResponses.internalError(res, error)
   }
 })
 

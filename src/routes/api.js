@@ -12,6 +12,7 @@ const { getEffectiveModel, parseVendorPrefixedModel } = require('../utils/modelH
 const sessionHelper = require('../utils/sessionHelper')
 const { updateRateLimitCounters } = require('../utils/rateLimitHelper')
 const { sanitizeUpstreamError } = require('../utils/errorSanitizer')
+const { StandardResponses } = require('../utils/standardResponses')
 const router = express.Router()
 
 function queueRateLimitUpdate(rateLimitInfo, usageSummary, model, context = '') {
@@ -374,7 +375,7 @@ async function handleMessagesRequest(req, res) {
         } catch (error) {
           logger.error('❌ Bedrock stream request failed:', error)
           if (!res.headersSent) {
-            return res.status(500).json({ error: 'Bedrock service error', message: error.message })
+            return StandardResponses.internalError(res, error)
           }
           return undefined
         }
@@ -737,10 +738,7 @@ router.get('/v1/models', authenticateApiKey, async (req, res) => {
     })
   } catch (error) {
     logger.error('❌ Models list error:', error)
-    res.status(500).json({
-      error: 'Failed to get models list',
-      message: error.message
-    })
+    StandardResponses.internalError(res, error)
   }
 })
 
@@ -782,10 +780,7 @@ router.get('/v1/key-info', authenticateApiKey, async (req, res) => {
     })
   } catch (error) {
     logger.error('❌ Key info error:', error)
-    res.status(500).json({
-      error: 'Failed to get key info',
-      message: error.message
-    })
+    StandardResponses.internalError(res, error)
   }
 })
 
@@ -804,10 +799,7 @@ router.get('/v1/usage', authenticateApiKey, async (req, res) => {
     })
   } catch (error) {
     logger.error('❌ Usage stats error:', error)
-    res.status(500).json({
-      error: 'Failed to get usage stats',
-      message: error.message
-    })
+    StandardResponses.internalError(res, error)
   }
 })
 
@@ -823,10 +815,7 @@ router.get('/v1/me', authenticateApiKey, async (req, res) => {
     })
   } catch (error) {
     logger.error('❌ User info error:', error)
-    res.status(500).json({
-      error: 'Failed to get user info',
-      message: error.message
-    })
+    StandardResponses.internalError(res, error)
   }
 })
 
@@ -846,10 +835,7 @@ router.get('/v1/organizations/:org_id/usage', authenticateApiKey, async (req, re
     })
   } catch (error) {
     logger.error('❌ Organization usage error:', error)
-    res.status(500).json({
-      error: 'Failed to get usage info',
-      message: error.message
-    })
+    StandardResponses.internalError(res, error)
   }
 })
 
@@ -957,12 +943,7 @@ router.post('/v1/messages/count_tokens', authenticateApiKey, async (req, res) =>
     logger.info(`✅ Token count request completed for key: ${req.apiKey.name}`)
   } catch (error) {
     logger.error('❌ Token count error:', error)
-    res.status(500).json({
-      error: {
-        type: 'server_error',
-        message: 'Failed to count tokens'
-      }
-    })
+    StandardResponses.internalError(res, error)
   }
 })
 

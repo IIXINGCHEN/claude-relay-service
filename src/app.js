@@ -118,13 +118,36 @@ class Application {
         next()
       })
 
-      // 🛡️ 安全中间件
+      // 🛡️ 安全中间件 - 增强配置
       this.app.use(
         helmet({
-          contentSecurityPolicy: false, // 允许内联样式和脚本
-          crossOriginEmbedderPolicy: false
+          contentSecurityPolicy: {
+            directives: {
+              defaultSrc: ["'self'"],
+              styleSrc: ["'self'", "'unsafe-inline'"],
+              scriptSrc: ["'self'", "'unsafe-inline'"],
+              imgSrc: ["'self'", "data:", "https:"],
+              connectSrc: ["'self'"],
+              fontSrc: ["'self'"],
+              objectSrc: ["'none'"],
+              mediaSrc: ["'self'"],
+              frameSrc: ["'none'"]
+            }
+          },
+          crossOriginEmbedderPolicy: false,
+          hsts: {
+            maxAge: 31536000,
+            includeSubDomains: true,
+            preload: true
+          },
+          noSniff: true,
+          xssFilter: true,
+          referrerPolicy: { policy: "same-origin" }
         })
       )
+      
+      // 隐藏服务器信息
+      this.app.disable('x-powered-by')
 
       // 🌐 CORS
       if (config.web.enableCors) {
@@ -163,6 +186,12 @@ class Application {
 
       // 📝 请求日志（使用自定义logger而不是morgan）
       this.app.use(requestLogger)
+      
+      // 🚦 全局速率限制
+      const { createRateLimitMiddleware } = require('./middleware/globalRateLimit')
+      this.app.use(createRateLimitMiddleware('global', {
+        skipPaths: ['/health', '/metrics', '/favicon.ico']
+      }))
 
       // 🐛 HTTP调试拦截器（仅在启用调试时生效）
       if (process.env.DEBUG_HTTP_TRAFFIC === 'true') {
