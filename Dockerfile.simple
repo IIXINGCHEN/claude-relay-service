@@ -1,6 +1,4 @@
-# 🎯 前端构建阶段
-FROM registry.cn-hangzhou.aliyuncs.com/library/node:20-alpine AS frontend-builder
-
+# 🎯 前端构建阶段（使用本地 Node.js）
 # 📁 设置工作目录
 WORKDIR /app/web/admin-spa
 
@@ -8,7 +6,7 @@ WORKDIR /app/web/admin-spa
 COPY web/admin-spa/package*.json ./
 
 # 🔽 安装前端依赖
-RUN npm ci
+RUN npm install
 
 # 📋 复制前端源代码
 COPY web/admin-spa/ ./
@@ -16,15 +14,13 @@ COPY web/admin-spa/ ./
 # 🏗️ 构建前端
 RUN npm run build
 
-# 🐳 主应用阶段
-FROM registry.cn-hangzhou.aliyuncs.com/library/node:20-alpine
-
+# 🐳 主应用阶段（使用本地 Node.js）
 # 📋 设置标签
 LABEL maintainer="claude-relay-service@example.com"
 LABEL description="Claude Code API Relay Service"
 LABEL version="1.1.186"
 
-# 🔧 安装系统依赖
+# 🔧 安装系统依赖（假设是 Alpine 基础镜像）
 RUN apk add --no-cache \
     curl \
     dumb-init \

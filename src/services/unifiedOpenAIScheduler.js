@@ -3,6 +3,7 @@ const openaiResponsesAccountService = require('./openaiResponsesAccountService')
 const accountGroupService = require('./accountGroupService')
 const redis = require('../models/redis')
 const logger = require('../utils/logger')
+const intelligentAccountSelector = require('./intelligentAccountSelector')
 
 class UnifiedOpenAIScheduler {
   constructor() {
@@ -321,15 +322,13 @@ class UnifiedOpenAIScheduler {
         }
       }
 
-      // 按最后使用时间排序（最久未使用的优先，与 Claude 保持一致）
-      const sortedAccounts = availableAccounts.sort((a, b) => {
-        const aLastUsed = new Date(a.lastUsedAt || 0).getTime()
-        const bLastUsed = new Date(b.lastUsedAt || 0).getTime()
-        return aLastUsed - bLastUsed // 最久未使用的优先
-      })
-
-      // 选择第一个账户
-      const selectedAccount = sortedAccounts[0]
+      // 🧠 使用智能账户选择器基于余额使用率选择最优账户
+      const selectedAccount = await intelligentAccountSelector.selectOptimalAccount(
+        apiKeyData,
+        availableAccounts,
+        'openai',
+        requestedModel
+      )
 
       // 如果有会话哈希，建立新的映射
       if (sessionHash) {
@@ -894,15 +893,13 @@ class UnifiedOpenAIScheduler {
         throw error
       }
 
-      // 按最后使用时间排序（最久未使用的优先，与 Claude 保持一致）
-      const sortedAccounts = availableAccounts.sort((a, b) => {
-        const aLastUsed = new Date(a.lastUsedAt || 0).getTime()
-        const bLastUsed = new Date(b.lastUsedAt || 0).getTime()
-        return aLastUsed - bLastUsed // 最久未使用的优先
-      })
-
-      // 选择第一个账户
-      const selectedAccount = sortedAccounts[0]
+      // 🧠 使用智能账户选择器基于余额使用率选择最优账户（分组内）
+      const selectedAccount = await intelligentAccountSelector.selectOptimalAccount(
+        apiKeyData,
+        availableAccounts,
+        'openai',
+        requestedModel
+      )
 
       // 如果有会话哈希，建立新的映射
       if (sessionHash) {

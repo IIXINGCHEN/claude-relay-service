@@ -20,13 +20,13 @@ const ERROR_CODES = {
   CONFLICT: 'CONFLICT',
   RATE_LIMITED: 'RATE_LIMITED',
   REQUEST_TIMEOUT: 'REQUEST_TIMEOUT',
-  
+
   // 5xx 服务器错误
   INTERNAL_ERROR: 'INTERNAL_ERROR',
   BAD_GATEWAY: 'BAD_GATEWAY',
   SERVICE_UNAVAILABLE: 'SERVICE_UNAVAILABLE',
   GATEWAY_TIMEOUT: 'GATEWAY_TIMEOUT',
-  
+
   // 业务错误
   ACCOUNT_DISABLED: 'ACCOUNT_DISABLED',
   QUOTA_EXCEEDED: 'QUOTA_EXCEEDED',
@@ -48,12 +48,12 @@ const USER_FRIENDLY_MESSAGES = {
   [ERROR_CODES.CONFLICT]: '资源冲突，请稍后重试',
   [ERROR_CODES.RATE_LIMITED]: '请求过于频繁，请稍后再试',
   [ERROR_CODES.REQUEST_TIMEOUT]: '请求超时，请重试',
-  
+
   [ERROR_CODES.INTERNAL_ERROR]: '服务器内部错误，我们正在处理',
   [ERROR_CODES.BAD_GATEWAY]: '上游服务响应异常',
   [ERROR_CODES.SERVICE_UNAVAILABLE]: '服务暂时不可用，请稍后再试',
   [ERROR_CODES.GATEWAY_TIMEOUT]: '上游服务响应超时',
-  
+
   [ERROR_CODES.ACCOUNT_DISABLED]: '账号已被禁用',
   [ERROR_CODES.QUOTA_EXCEEDED]: '配额已用完',
   [ERROR_CODES.UPSTREAM_ERROR]: '上游服务错误',
@@ -74,12 +74,12 @@ const ERROR_STATUS_CODES = {
   [ERROR_CODES.REQUEST_TIMEOUT]: 408,
   [ERROR_CODES.CONFLICT]: 409,
   [ERROR_CODES.RATE_LIMITED]: 429,
-  
+
   [ERROR_CODES.INTERNAL_ERROR]: 500,
   [ERROR_CODES.BAD_GATEWAY]: 502,
   [ERROR_CODES.SERVICE_UNAVAILABLE]: 503,
   [ERROR_CODES.GATEWAY_TIMEOUT]: 504,
-  
+
   [ERROR_CODES.ACCOUNT_DISABLED]: 403,
   [ERROR_CODES.QUOTA_EXCEEDED]: 429,
   [ERROR_CODES.UPSTREAM_ERROR]: 502,
@@ -97,7 +97,7 @@ class StandardResponses {
       message,
       data
     }
-    
+
     return res.status(statusCode).json(response)
   }
 
@@ -121,7 +121,7 @@ class StandardResponses {
   static error(res, errorCode, details = null, customMessage = null) {
     const statusCode = ERROR_STATUS_CODES[errorCode] || 500
     const message = customMessage || USER_FRIENDLY_MESSAGES[errorCode] || '发生了错误'
-    
+
     const response = {
       success: false,
       error: {
@@ -163,48 +163,73 @@ class StandardResponses {
    * 发送验证错误响应
    */
   static validationError(res, errors, message = '请求参数验证失败') {
-    return this.error(res, ERROR_CODES.VALIDATION_ERROR, {
-      errors,
-      suggestion: '请检查请求参数是否正确'
-    }, message)
+    return this.error(
+      res,
+      ERROR_CODES.VALIDATION_ERROR,
+      {
+        errors,
+        suggestion: '请检查请求参数是否正确'
+      },
+      message
+    )
   }
 
   /**
    * 发送认证错误响应
    */
   static unauthorized(res, message = '认证失败') {
-    return this.error(res, ERROR_CODES.UNAUTHORIZED, {
-      suggestion: '请提供有效的认证凭据'
-    }, message)
+    return this.error(
+      res,
+      ERROR_CODES.UNAUTHORIZED,
+      {
+        suggestion: '请提供有效的认证凭据'
+      },
+      message
+    )
   }
 
   /**
    * 发送权限错误响应
    */
   static forbidden(res, message = '权限不足') {
-    return this.error(res, ERROR_CODES.FORBIDDEN, {
-      suggestion: '请联系管理员获取相应权限'
-    }, message)
+    return this.error(
+      res,
+      ERROR_CODES.FORBIDDEN,
+      {
+        suggestion: '请联系管理员获取相应权限'
+      },
+      message
+    )
   }
 
   /**
    * 发送未找到错误响应
    */
   static notFound(res, resource = '资源', message = null) {
-    return this.error(res, ERROR_CODES.NOT_FOUND, {
-      resource,
-      suggestion: '请检查请求的资源ID是否正确'
-    }, message || `${resource}不存在`)
+    return this.error(
+      res,
+      ERROR_CODES.NOT_FOUND,
+      {
+        resource,
+        suggestion: '请检查请求的资源ID是否正确'
+      },
+      message || `${resource}不存在`
+    )
   }
 
   /**
    * 发送速率限制错误响应
    */
   static rateLimited(res, retryAfter = 60, message = '请求过于频繁') {
-    return this.error(res, ERROR_CODES.RATE_LIMITED, {
-      retryAfter,
-      suggestion: `请等待${retryAfter}秒后重试`
-    }, message)
+    return this.error(
+      res,
+      ERROR_CODES.RATE_LIMITED,
+      {
+        retryAfter,
+        suggestion: `请等待${retryAfter}秒后重试`
+      },
+      message
+    )
   }
 
   /**
@@ -213,14 +238,17 @@ class StandardResponses {
   static internalError(res, error = null, message = '服务器内部错误') {
     // 记录详细错误
     logger.error('Internal Server Error:', error)
-    
-    const details = config.nodeEnv === 'development' && error ? {
-      message: error.message,
-      stack: error.stack
-    } : {
-      suggestion: '请稍后重试，如果问题持续，请联系技术支持'
-    }
-    
+
+    const details =
+      config.nodeEnv === 'development' && error
+        ? {
+            message: error.message,
+            stack: error.stack
+          }
+        : {
+            suggestion: '请稍后重试，如果问题持续，请联系技术支持'
+          }
+
     return this.error(res, ERROR_CODES.INTERNAL_ERROR, details, message)
   }
 
@@ -228,28 +256,43 @@ class StandardResponses {
    * 发送网关错误响应
    */
   static badGateway(res, message = '上游服务错误') {
-    return this.error(res, ERROR_CODES.BAD_GATEWAY, {
-      suggestion: '上游服务暂时无法响应，请稍后重试'
-    }, message)
+    return this.error(
+      res,
+      ERROR_CODES.BAD_GATEWAY,
+      {
+        suggestion: '上游服务暂时无法响应，请稍后重试'
+      },
+      message
+    )
   }
 
   /**
    * 发送服务不可用响应
    */
   static serviceUnavailable(res, retryAfter = 30, message = '服务暂时不可用') {
-    return this.error(res, ERROR_CODES.SERVICE_UNAVAILABLE, {
-      retryAfter,
-      suggestion: `服务正在维护或升级，请${retryAfter}秒后重试`
-    }, message)
+    return this.error(
+      res,
+      ERROR_CODES.SERVICE_UNAVAILABLE,
+      {
+        retryAfter,
+        suggestion: `服务正在维护或升级，请${retryAfter}秒后重试`
+      },
+      message
+    )
   }
 
   /**
    * 发送网关超时响应
    */
   static gatewayTimeout(res, message = '上游服务响应超时') {
-    return this.error(res, ERROR_CODES.GATEWAY_TIMEOUT, {
-      suggestion: '请求处理时间过长，请稍后重试'
-    }, message)
+    return this.error(
+      res,
+      ERROR_CODES.GATEWAY_TIMEOUT,
+      {
+        suggestion: '请求处理时间过长，请稍后重试'
+      },
+      message
+    )
   }
 
   /**
@@ -284,7 +327,7 @@ class StandardResponses {
     if (error.code === 'ECONNREFUSED') {
       return this.serviceUnavailable(res, 60, '无法连接到后端服务')
     }
-    
+
     if (error.code === 'ETIMEDOUT' || error.code === 'ECONNABORTED') {
       return this.gatewayTimeout(res, '请求超时')
     }

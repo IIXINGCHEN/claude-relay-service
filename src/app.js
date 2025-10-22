@@ -38,6 +38,7 @@ const droidRoutes = require('./routes/droidRoutes')
 const userRoutes = require('./routes/userRoutes')
 const azureOpenaiRoutes = require('./routes/azureOpenaiRoutes')
 const webhookRoutes = require('./routes/webhook')
+const intelligentSelectorRoutes = require('./routes/intelligentSelectorRoutes')
 
 // Import middleware
 const {
@@ -126,7 +127,7 @@ class Application {
               defaultSrc: ["'self'"],
               styleSrc: ["'self'", "'unsafe-inline'"],
               scriptSrc: ["'self'", "'unsafe-inline'"],
-              imgSrc: ["'self'", "data:", "https:"],
+              imgSrc: ["'self'", 'data:', 'https:'],
               connectSrc: ["'self'"],
               fontSrc: ["'self'"],
               objectSrc: ["'none'"],
@@ -142,10 +143,10 @@ class Application {
           },
           noSniff: true,
           xssFilter: true,
-          referrerPolicy: { policy: "same-origin" }
+          referrerPolicy: { policy: 'same-origin' }
         })
       )
-      
+
       // 隐藏服务器信息
       this.app.disable('x-powered-by')
 
@@ -186,12 +187,14 @@ class Application {
 
       // 📝 请求日志（使用自定义logger而不是morgan）
       this.app.use(requestLogger)
-      
+
       // 🚦 全局速率限制
       const { createRateLimitMiddleware } = require('./middleware/globalRateLimit')
-      this.app.use(createRateLimitMiddleware('global', {
-        skipPaths: ['/health', '/metrics', '/favicon.ico']
-      }))
+      this.app.use(
+        createRateLimitMiddleware('global', {
+          skipPaths: ['/health', '/metrics', '/favicon.ico']
+        })
+      )
 
       // 🐛 HTTP调试拦截器（仅在启用调试时生效）
       if (process.env.DEBUG_HTTP_TRAFFIC === 'true') {
@@ -322,6 +325,7 @@ class Application {
       this.app.use('/droid', droidRoutes) // Droid (Factory.ai) API 转发
       this.app.use('/azure', azureOpenaiRoutes)
       this.app.use('/admin/webhook', webhookRoutes)
+      this.app.use('/admin/intelligent-selector', intelligentSelectorRoutes)
 
       // 🏠 根路径重定向到新版管理界面
       this.app.get('/', (req, res) => {

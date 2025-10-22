@@ -3,8 +3,7 @@ version: '3.8'
 services:
   # 🚀 Claude Relay Service
   claude-relay:
-    build: .
-    image: claude-relay-service:local
+    image: claude-relay-service:1.1.186
     restart: unless-stopped
     ports:
       - "${BIND_HOST:-0.0.0.0}:${PORT:-3000}:3000"
@@ -22,8 +21,8 @@ services:
       - REDIS_DB=${REDIS_DB:-0}
       - REDIS_ENABLE_TLS=${REDIS_ENABLE_TLS:-}
 
-      - JWT_SECRET=zpktbAN56mNPBke9bZiyrIcGcV6XR0V3
-      - ENCRYPTION_KEY=WwnmahYgP7LKWwRKhM2pfm5BDEqn6w6E
+      - JWT_SECRET=49be6e89693fd99da14f4ce10ab16ca46ba22673843ce110773b7abbd48c8ac4ba11d16659aad871dddbf6f69d6daf15d7f8704c57b10ac70e734b547f5474b2
+      - ENCRYPTION_KEY=166af613716b08a517f859c2aa589a43
       - ADMIN_SESSION_TIMEOUT=${ADMIN_SESSION_TIMEOUT:-86400000}
       - API_KEY_PREFIX=${API_KEY_PREFIX:-cr_}
 

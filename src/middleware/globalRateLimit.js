@@ -65,7 +65,7 @@ const rateLimiters = {
  */
 function createRateLimitMiddleware(type = 'global', options = {}) {
   const limiter = rateLimiters[type] || rateLimiters.global
-  
+
   return async (req, res, next) => {
     // 跳过健康检查等端点
     if (options.skipPaths && options.skipPaths.includes(req.path)) {
@@ -80,7 +80,7 @@ function createRateLimitMiddleware(type = 'global', options = {}) {
     try {
       // 生成限制键
       let key = req.ip
-      
+
       if (type === 'apiKey' && req.apiKey) {
         key = req.apiKey.id
       } else if (type === 'auth') {
@@ -90,22 +90,27 @@ function createRateLimitMiddleware(type = 'global', options = {}) {
 
       // 消费限制点
       const rateLimitRes = await limiter.consume(key, options.points || 1)
-      
+
       // 添加限制信息到响应头
       res.setHeader('X-RateLimit-Limit', limiter.points)
       res.setHeader('X-RateLimit-Remaining', rateLimitRes.remainingPoints)
-      res.setHeader('X-RateLimit-Reset', new Date(Date.now() + rateLimitRes.msBeforeNext).toISOString())
-      
+      res.setHeader(
+        'X-RateLimit-Reset',
+        new Date(Date.now() + rateLimitRes.msBeforeNext).toISOString()
+      )
+
       // 记录接近限制的警告
       if (rateLimitRes.remainingPoints < limiter.points * 0.2) {
-        logger.warn(`⚠️ Rate limit warning for ${key}: ${rateLimitRes.remainingPoints} points remaining`)
+        logger.warn(
+          `⚠️ Rate limit warning for ${key}: ${rateLimitRes.remainingPoints} points remaining`
+        )
       }
-      
+
       next()
     } catch (rateLimitRes) {
       // 速率限制超出
       const retryAfter = Math.round(rateLimitRes.msBeforeNext / 1000) || 60
-      
+
       logger.warn(`🚫 Rate limit exceeded for ${req.ip}`, {
         type,
         key: req.ip,
@@ -113,16 +118,22 @@ function createRateLimitMiddleware(type = 'global', options = {}) {
         remainingPoints: rateLimitRes.remainingPoints || 0,
         retryAfter
       })
-      
+
       // 设置标准响应头
       res.setHeader('X-RateLimit-Limit', limiter.points)
       res.setHeader('X-RateLimit-Remaining', 0)
-      res.setHeader('X-RateLimit-Reset', new Date(Date.now() + rateLimitRes.msBeforeNext).toISOString())
+      res.setHeader(
+        'X-RateLimit-Reset',
+        new Date(Date.now() + rateLimitRes.msBeforeNext).toISOString()
+      )
       res.setHeader('Retry-After', retryAfter)
-      
+
       // 返回标准错误响应
-      return StandardResponses.rateLimited(res, retryAfter, 
-        options.message || `请求过于频繁，请${retryAfter}秒后重试`)
+      return StandardResponses.rateLimited(
+        res,
+        retryAfter,
+        options.message || `请求过于频繁，请${retryAfter}秒后重试`
+      )
     }
   }
 }
@@ -146,7 +157,7 @@ async function getRateLimitStatus(type, key) {
   if (!limiter) {
     return null
   }
-  
+
   try {
     const res = await limiter.get(key)
     if (!res) {
@@ -156,7 +167,7 @@ async function getRateLimitStatus(type, key) {
         msBeforeNext: 0
       }
     }
-    
+
     return {
       points: limiter.points,
       remainingPoints: Math.max(0, limiter.points - res.consumedPoints),

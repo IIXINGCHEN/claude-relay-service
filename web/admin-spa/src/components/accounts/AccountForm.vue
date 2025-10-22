@@ -4674,9 +4674,8 @@ const updateAccount = async () => {
           data.apiKeys = []
         }
 
-        if (apiKeyUpdateMode !== 'append' || trimmedApiKeysInput) {
-          data.apiKeyUpdateMode = apiKeyUpdateMode
-        }
+        // 始终发送更新模式，让后端知道用户的选择
+        data.apiKeyUpdateMode = apiKeyUpdateMode
       }
 
       if (isEditingDroidApiKey.value) {

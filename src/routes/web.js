@@ -169,7 +169,7 @@ router.post('/auth/change-password', async (req, res) => {
     // 获取当前管理员信息
     const adminData = await redis.getSession('admin_credentials')
     if (!adminData) {
-      return StandardResponses.internalError(res, error)
+      return StandardResponses.internalError(res, '管理员数据不存在')
     }
 
     // 验证当前密码
@@ -189,7 +189,7 @@ router.post('/auth/change-password', async (req, res) => {
     // 先更新 init.json（唯一真实数据源）
     const initFilePath = path.join(__dirname, '../../data/init.json')
     if (!fs.existsSync(initFilePath)) {
-      return StandardResponses.internalError(res, error)
+      return StandardResponses.internalError(res, '初始化文件不存在')
     }
 
     try {
@@ -219,7 +219,7 @@ router.post('/auth/change-password', async (req, res) => {
       await redis.setSession('admin_credentials', updatedAdminData)
     } catch (fileError) {
       logger.error('❌ Failed to update init.json:', fileError)
-      return StandardResponses.internalError(res, error)
+      return StandardResponses.internalError(res, fileError || '更新初始化文件失败')
     }
 
     // 清除当前会话（强制用户重新登录）
@@ -262,7 +262,7 @@ router.get('/auth/user', async (req, res) => {
     // 获取管理员信息
     const adminData = await redis.getSession('admin_credentials')
     if (!adminData) {
-      return StandardResponses.internalError(res, error)
+      return StandardResponses.internalError(res, '管理员数据不存在')
     }
 
     return res.json({

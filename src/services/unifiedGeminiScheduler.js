@@ -2,6 +2,7 @@ const geminiAccountService = require('./geminiAccountService')
 const accountGroupService = require('./accountGroupService')
 const redis = require('../models/redis')
 const logger = require('../utils/logger')
+const intelligentAccountSelector = require('./intelligentAccountSelector')
 
 class UnifiedGeminiScheduler {
   constructor() {
@@ -92,11 +93,13 @@ class UnifiedGeminiScheduler {
         }
       }
 
-      // 按优先级和最后使用时间排序
-      const sortedAccounts = this._sortAccountsByPriority(availableAccounts)
-
-      // 选择第一个账户
-      const selectedAccount = sortedAccounts[0]
+      // 🧠 使用智能账户选择器基于余额使用率选择最优账户
+      const selectedAccount = await intelligentAccountSelector.selectOptimalAccount(
+        apiKeyData,
+        availableAccounts,
+        'gemini',
+        requestedModel
+      )
 
       // 如果有会话哈希，建立新的映射
       if (sessionHash) {
@@ -507,11 +510,13 @@ class UnifiedGeminiScheduler {
         throw new Error(`No available accounts in Gemini group ${group.name}`)
       }
 
-      // 使用现有的优先级排序逻辑
-      const sortedAccounts = this._sortAccountsByPriority(availableAccounts)
-
-      // 选择第一个账户
-      const selectedAccount = sortedAccounts[0]
+      // 🧠 使用智能账户选择器基于余额使用率选择最优账户（分组内）
+      const selectedAccount = await intelligentAccountSelector.selectOptimalAccount(
+        apiKeyData,
+        availableAccounts,
+        'gemini',
+        requestedModel
+      )
 
       // 如果有会话哈希，建立新的映射
       if (sessionHash) {

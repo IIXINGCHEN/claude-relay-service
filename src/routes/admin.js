@@ -209,13 +209,17 @@ router.get('/api-keys', authenticateAdmin, async (req, res) => {
 
       // 确保日期范围有效
       if (start > end) {
-        return StandardResponses.validationError(res, null, "Start date must be before or equal to end date")
+        return StandardResponses.validationError(
+          res,
+          null,
+          'Start date must be before or equal to end date'
+        )
       }
 
       // 限制最大范围为365天
       const daysDiff = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1
       if (daysDiff > 365) {
-        return StandardResponses.validationError(res, null, "Date range cannot exceed 365 days")
+        return StandardResponses.validationError(res, null, 'Date range cannot exceed 365 days')
       }
 
       // 生成日期范围内每天的搜索模式
@@ -622,11 +626,15 @@ router.post('/api-keys', authenticateAdmin, async (req, res) => {
 
     // 输入验证
     if (!name || typeof name !== 'string' || name.trim().length === 0) {
-      return StandardResponses.validationError(res, null, "Name is required and must be a non-empty string")
+      return StandardResponses.validationError(
+        res,
+        null,
+        'Name is required and must be a non-empty string'
+      )
     }
 
     if (name.length > 100) {
-      return StandardResponses.validationError(res, null, "Name must be less than 100 characters")
+      return StandardResponses.validationError(res, null, 'Name must be less than 100 characters')
     }
 
     if (description && (typeof description !== 'string' || description.length > 500)) {
@@ -636,7 +644,11 @@ router.post('/api-keys', authenticateAdmin, async (req, res) => {
     }
 
     if (tokenLimit && (!Number.isInteger(Number(tokenLimit)) || Number(tokenLimit) < 0)) {
-      return StandardResponses.validationError(res, null, "Token limit must be a non-negative integer")
+      return StandardResponses.validationError(
+        res,
+        null,
+        'Token limit must be a non-negative integer'
+      )
     }
 
     if (
@@ -645,7 +657,11 @@ router.post('/api-keys', authenticateAdmin, async (req, res) => {
       concurrencyLimit !== '' &&
       (!Number.isInteger(Number(concurrencyLimit)) || Number(concurrencyLimit) < 0)
     ) {
-      return StandardResponses.validationError(res, null, "Concurrency limit must be a non-negative integer")
+      return StandardResponses.validationError(
+        res,
+        null,
+        'Concurrency limit must be a non-negative integer'
+      )
     }
 
     if (
@@ -665,34 +681,46 @@ router.post('/api-keys', authenticateAdmin, async (req, res) => {
       rateLimitRequests !== '' &&
       (!Number.isInteger(Number(rateLimitRequests)) || Number(rateLimitRequests) < 1)
     ) {
-      return StandardResponses.validationError(res, null, "Rate limit requests must be a positive integer")
+      return StandardResponses.validationError(
+        res,
+        null,
+        'Rate limit requests must be a positive integer'
+      )
     }
 
     // 验证模型限制字段
     if (enableModelRestriction !== undefined && typeof enableModelRestriction !== 'boolean') {
-      return StandardResponses.validationError(res, null, "Enable model restriction must be a boolean")
+      return StandardResponses.validationError(
+        res,
+        null,
+        'Enable model restriction must be a boolean'
+      )
     }
 
     if (restrictedModels !== undefined && !Array.isArray(restrictedModels)) {
-      return StandardResponses.validationError(res, null, "Restricted models must be an array")
+      return StandardResponses.validationError(res, null, 'Restricted models must be an array')
     }
 
     // 验证客户端限制字段
     if (enableClientRestriction !== undefined && typeof enableClientRestriction !== 'boolean') {
-      return StandardResponses.validationError(res, null, "Enable client restriction must be a boolean")
+      return StandardResponses.validationError(
+        res,
+        null,
+        'Enable client restriction must be a boolean'
+      )
     }
 
     if (allowedClients !== undefined && !Array.isArray(allowedClients)) {
-      return StandardResponses.validationError(res, null, "Allowed clients must be an array")
+      return StandardResponses.validationError(res, null, 'Allowed clients must be an array')
     }
 
     // 验证标签字段
     if (tags !== undefined && !Array.isArray(tags)) {
-      return StandardResponses.validationError(res, null, "Tags must be an array")
+      return StandardResponses.validationError(res, null, 'Tags must be an array')
     }
 
     if (tags && tags.some((tag) => typeof tag !== 'string' || tag.trim().length === 0)) {
-      return StandardResponses.validationError(res, null, "All tags must be non-empty strings")
+      return StandardResponses.validationError(res, null, 'All tags must be non-empty strings')
     }
 
     if (
@@ -701,7 +729,11 @@ router.post('/api-keys', authenticateAdmin, async (req, res) => {
       totalCostLimit !== '' &&
       (Number.isNaN(Number(totalCostLimit)) || Number(totalCostLimit) < 0)
     ) {
-      return StandardResponses.validationError(res, null, "Total cost limit must be a non-negative number")
+      return StandardResponses.validationError(
+        res,
+        null,
+        'Total cost limit must be a non-negative number'
+      )
     }
 
     // 验证激活相关字段
@@ -745,7 +777,11 @@ router.post('/api-keys', authenticateAdmin, async (req, res) => {
       permissions !== '' &&
       !['claude', 'gemini', 'openai', 'droid', 'all'].includes(permissions)
     ) {
-      return StandardResponses.validationError(res, null, "Invalid permissions value. Must be claude, gemini, openai, droid, or all")
+      return StandardResponses.validationError(
+        res,
+        null,
+        'Invalid permissions value. Must be claude, gemini, openai, droid, or all'
+      )
     }
 
     const newKey = await apiKeyService.generateApiKey({
@@ -822,11 +858,19 @@ router.post('/api-keys/batch', authenticateAdmin, async (req, res) => {
 
     // 输入验证
     if (!baseName || typeof baseName !== 'string' || baseName.trim().length === 0) {
-      return StandardResponses.validationError(res, null, "Base name is required and must be a non-empty string")
+      return StandardResponses.validationError(
+        res,
+        null,
+        'Base name is required and must be a non-empty string'
+      )
     }
 
     if (!count || !Number.isInteger(count) || count < 2 || count > 500) {
-      return StandardResponses.validationError(res, null, "Count must be an integer between 2 and 500")
+      return StandardResponses.validationError(
+        res,
+        null,
+        'Count must be an integer between 2 and 500'
+      )
     }
 
     if (baseName.length > 90) {
@@ -841,7 +885,11 @@ router.post('/api-keys/batch', authenticateAdmin, async (req, res) => {
       permissions !== '' &&
       !['claude', 'gemini', 'openai', 'droid', 'all'].includes(permissions)
     ) {
-      return StandardResponses.validationError(res, null, "Invalid permissions value. Must be claude, gemini, openai, droid, or all")
+      return StandardResponses.validationError(
+        res,
+        null,
+        'Invalid permissions value. Must be claude, gemini, openai, droid, or all'
+      )
     }
 
     // 生成批量API Keys
@@ -944,7 +992,11 @@ router.put('/api-keys/batch', authenticateAdmin, async (req, res) => {
       updates.permissions !== undefined &&
       !['claude', 'gemini', 'openai', 'droid', 'all'].includes(updates.permissions)
     ) {
-      return StandardResponses.validationError(res, null, "Invalid permissions value. Must be claude, gemini, openai, droid, or all")
+      return StandardResponses.validationError(
+        res,
+        null,
+        'Invalid permissions value. Must be claude, gemini, openai, droid, or all'
+      )
     }
 
     logger.info(
@@ -1139,24 +1191,36 @@ router.put('/api-keys/:keyId', authenticateAdmin, async (req, res) => {
     if (name !== undefined && name !== null && name !== '') {
       const trimmedName = name.toString().trim()
       if (trimmedName.length === 0) {
-        return StandardResponses.validationError(res, null, "API Key name cannot be empty")
+        return StandardResponses.validationError(res, null, 'API Key name cannot be empty')
       }
       if (trimmedName.length > 100) {
-        return StandardResponses.validationError(res, null, "API Key name must be less than 100 characters")
+        return StandardResponses.validationError(
+          res,
+          null,
+          'API Key name must be less than 100 characters'
+        )
       }
       updates.name = trimmedName
     }
 
     if (tokenLimit !== undefined && tokenLimit !== null && tokenLimit !== '') {
       if (!Number.isInteger(Number(tokenLimit)) || Number(tokenLimit) < 0) {
-        return StandardResponses.validationError(res, null, "Token limit must be a non-negative integer")
+        return StandardResponses.validationError(
+          res,
+          null,
+          'Token limit must be a non-negative integer'
+        )
       }
       updates.tokenLimit = Number(tokenLimit)
     }
 
     if (concurrencyLimit !== undefined && concurrencyLimit !== null && concurrencyLimit !== '') {
       if (!Number.isInteger(Number(concurrencyLimit)) || Number(concurrencyLimit) < 0) {
-        return StandardResponses.validationError(res, null, "Concurrency limit must be a non-negative integer")
+        return StandardResponses.validationError(
+          res,
+          null,
+          'Concurrency limit must be a non-negative integer'
+        )
       }
       updates.concurrencyLimit = Number(concurrencyLimit)
     }
@@ -1172,7 +1236,11 @@ router.put('/api-keys/:keyId', authenticateAdmin, async (req, res) => {
 
     if (rateLimitRequests !== undefined && rateLimitRequests !== null && rateLimitRequests !== '') {
       if (!Number.isInteger(Number(rateLimitRequests)) || Number(rateLimitRequests) < 0) {
-        return StandardResponses.validationError(res, null, "Rate limit requests must be a non-negative integer")
+        return StandardResponses.validationError(
+          res,
+          null,
+          'Rate limit requests must be a non-negative integer'
+        )
       }
       updates.rateLimitRequests = Number(rateLimitRequests)
     }
@@ -1180,7 +1248,11 @@ router.put('/api-keys/:keyId', authenticateAdmin, async (req, res) => {
     if (rateLimitCost !== undefined && rateLimitCost !== null && rateLimitCost !== '') {
       const cost = Number(rateLimitCost)
       if (isNaN(cost) || cost < 0) {
-        return StandardResponses.validationError(res, null, "Rate limit cost must be a non-negative number")
+        return StandardResponses.validationError(
+          res,
+          null,
+          'Rate limit cost must be a non-negative number'
+        )
       }
       updates.rateLimitCost = cost
     }
@@ -1218,7 +1290,11 @@ router.put('/api-keys/:keyId', authenticateAdmin, async (req, res) => {
     if (permissions !== undefined) {
       // 验证权限值
       if (!['claude', 'gemini', 'openai', 'droid', 'all'].includes(permissions)) {
-        return StandardResponses.validationError(res, null, "Invalid permissions value. Must be claude, gemini, openai, droid, or all")
+        return StandardResponses.validationError(
+          res,
+          null,
+          'Invalid permissions value. Must be claude, gemini, openai, droid, or all'
+        )
       }
       updates.permissions = permissions
     }
@@ -1226,14 +1302,18 @@ router.put('/api-keys/:keyId', authenticateAdmin, async (req, res) => {
     // 处理模型限制字段
     if (enableModelRestriction !== undefined) {
       if (typeof enableModelRestriction !== 'boolean') {
-        return StandardResponses.validationError(res, null, "Enable model restriction must be a boolean")
+        return StandardResponses.validationError(
+          res,
+          null,
+          'Enable model restriction must be a boolean'
+        )
       }
       updates.enableModelRestriction = enableModelRestriction
     }
 
     if (restrictedModels !== undefined) {
       if (!Array.isArray(restrictedModels)) {
-        return StandardResponses.validationError(res, null, "Restricted models must be an array")
+        return StandardResponses.validationError(res, null, 'Restricted models must be an array')
       }
       updates.restrictedModels = restrictedModels
     }
@@ -1241,14 +1321,18 @@ router.put('/api-keys/:keyId', authenticateAdmin, async (req, res) => {
     // 处理客户端限制字段
     if (enableClientRestriction !== undefined) {
       if (typeof enableClientRestriction !== 'boolean') {
-        return StandardResponses.validationError(res, null, "Enable client restriction must be a boolean")
+        return StandardResponses.validationError(
+          res,
+          null,
+          'Enable client restriction must be a boolean'
+        )
       }
       updates.enableClientRestriction = enableClientRestriction
     }
 
     if (allowedClients !== undefined) {
       if (!Array.isArray(allowedClients)) {
-        return StandardResponses.validationError(res, null, "Allowed clients must be an array")
+        return StandardResponses.validationError(res, null, 'Allowed clients must be an array')
       }
       updates.allowedClients = allowedClients
     }
@@ -1263,7 +1347,7 @@ router.put('/api-keys/:keyId', authenticateAdmin, async (req, res) => {
         // 验证日期格式
         const expireDate = new Date(expiresAt)
         if (isNaN(expireDate.getTime())) {
-          return StandardResponses.validationError(res, null, "Invalid expiration date format")
+          return StandardResponses.validationError(res, null, 'Invalid expiration date format')
         }
         updates.expiresAt = expiresAt
         updates.isActive = expireDate > new Date() // 如果过期时间在当前时间之后，则设置为激活状态
@@ -1274,7 +1358,11 @@ router.put('/api-keys/:keyId', authenticateAdmin, async (req, res) => {
     if (dailyCostLimit !== undefined && dailyCostLimit !== null && dailyCostLimit !== '') {
       const costLimit = Number(dailyCostLimit)
       if (isNaN(costLimit) || costLimit < 0) {
-        return StandardResponses.validationError(res, null, "Daily cost limit must be a non-negative number")
+        return StandardResponses.validationError(
+          res,
+          null,
+          'Daily cost limit must be a non-negative number'
+        )
       }
       updates.dailyCostLimit = costLimit
     }
@@ -1282,7 +1370,11 @@ router.put('/api-keys/:keyId', authenticateAdmin, async (req, res) => {
     if (totalCostLimit !== undefined && totalCostLimit !== null && totalCostLimit !== '') {
       const costLimit = Number(totalCostLimit)
       if (isNaN(costLimit) || costLimit < 0) {
-        return StandardResponses.validationError(res, null, "Total cost limit must be a non-negative number")
+        return StandardResponses.validationError(
+          res,
+          null,
+          'Total cost limit must be a non-negative number'
+        )
       }
       updates.totalCostLimit = costLimit
     }
@@ -1306,10 +1398,10 @@ router.put('/api-keys/:keyId', authenticateAdmin, async (req, res) => {
     // 处理标签
     if (tags !== undefined) {
       if (!Array.isArray(tags)) {
-        return StandardResponses.validationError(res, null, "Tags must be an array")
+        return StandardResponses.validationError(res, null, 'Tags must be an array')
       }
       if (tags.some((tag) => typeof tag !== 'string' || tag.trim().length === 0)) {
-        return StandardResponses.validationError(res, null, "All tags must be non-empty strings")
+        return StandardResponses.validationError(res, null, 'All tags must be non-empty strings')
       }
       updates.tags = tags
     }
@@ -1317,7 +1409,7 @@ router.put('/api-keys/:keyId', authenticateAdmin, async (req, res) => {
     // 处理活跃/禁用状态状态, 放在过期处理后，以确保后续增加禁用key功能
     if (isActive !== undefined) {
       if (typeof isActive !== 'boolean') {
-        return StandardResponses.validationError(res, null, "isActive must be a boolean")
+        return StandardResponses.validationError(res, null, 'isActive must be a boolean')
       }
       updates.isActive = isActive
     }
@@ -1336,10 +1428,10 @@ router.put('/api-keys/:keyId', authenticateAdmin, async (req, res) => {
         try {
           const user = await userService.getUserById(ownerId, false)
           if (!user) {
-            return StandardResponses.validationError(res, null, "Invalid owner: User not found")
+            return StandardResponses.validationError(res, null, 'Invalid owner: User not found')
           }
           if (!user.isActive) {
-            return StandardResponses.validationError(res, null, "Cannot assign to inactive user")
+            return StandardResponses.validationError(res, null, 'Cannot assign to inactive user')
           }
 
           // 设置新的所有者信息
@@ -1351,7 +1443,7 @@ router.put('/api-keys/:keyId', authenticateAdmin, async (req, res) => {
           logger.info(`🔄 Admin reassigning API key ${keyId} to user ${user.username}`)
         } catch (error) {
           logger.error('Error fetching user for owner reassignment:', error)
-          return StandardResponses.validationError(res, null, "Invalid owner ID")
+          return StandardResponses.validationError(res, null, 'Invalid owner ID')
         }
       } else {
         // 清空所有者（分配给Admin）
@@ -1413,7 +1505,7 @@ router.patch('/api-keys/:keyId/expiration', authenticateAdmin, async (req, res) 
     if (expiresAt !== undefined && activateNow !== true) {
       // 验证过期时间格式
       if (expiresAt && isNaN(Date.parse(expiresAt))) {
-        return StandardResponses.validationError(res, null, "Invalid expiration date format")
+        return StandardResponses.validationError(res, null, 'Invalid expiration date format')
       }
 
       // 如果设置了过期时间，确保key是激活状态
@@ -1431,7 +1523,7 @@ router.patch('/api-keys/:keyId/expiration', authenticateAdmin, async (req, res) 
     }
 
     if (Object.keys(updates).length === 0) {
-      return StandardResponses.validationError(res, null, "No valid updates provided")
+      return StandardResponses.validationError(res, null, 'No valid updates provided')
     }
 
     // 更新API Key
@@ -1888,7 +1980,7 @@ router.post('/claude-accounts/exchange-code', authenticateAdmin, async (req, res
     // 从Redis获取OAuth会话信息
     const oauthSession = await redis.getOAuthSession(sessionId)
     if (!oauthSession) {
-      return StandardResponses.validationError(res, null, "Invalid or expired OAuth session")
+      return StandardResponses.validationError(res, null, 'Invalid or expired OAuth session')
     }
 
     // 检查会话是否过期
@@ -2005,12 +2097,16 @@ router.post('/claude-accounts/exchange-setup-token-code', authenticateAdmin, asy
     // 从Redis获取OAuth会话信息
     const oauthSession = await redis.getOAuthSession(sessionId)
     if (!oauthSession) {
-      return StandardResponses.validationError(res, null, "Invalid or expired OAuth session")
+      return StandardResponses.validationError(res, null, 'Invalid or expired OAuth session')
     }
 
     // 检查是否是setup-token类型
     if (oauthSession.type !== 'setup-token') {
-      return StandardResponses.validationError(res, null, "Invalid session type for setup token exchange")
+      return StandardResponses.validationError(
+        res,
+        null,
+        'Invalid session type for setup token exchange'
+      )
     }
 
     // 检查会话是否过期
@@ -2303,7 +2399,7 @@ router.post('/claude-accounts', authenticateAdmin, async (req, res) => {
     } = req.body
 
     if (!name) {
-      return StandardResponses.validationError(res, null, "Name is required")
+      return StandardResponses.validationError(res, null, 'Name is required')
     }
 
     // 验证accountType的有效性
@@ -2325,7 +2421,11 @@ router.post('/claude-accounts', authenticateAdmin, async (req, res) => {
       priority !== undefined &&
       (typeof priority !== 'number' || priority < 1 || priority > 100)
     ) {
-      return StandardResponses.validationError(res, null, "Priority must be a number between 1 and 100")
+      return StandardResponses.validationError(
+        res,
+        null,
+        'Priority must be a number between 1 and 100'
+      )
     }
 
     const newAccount = await claudeAccountService.createAccount({
@@ -2385,7 +2485,11 @@ router.put('/claude-accounts/:accountId', authenticateAdmin, async (req, res) =>
         mappedUpdates.priority < 1 ||
         mappedUpdates.priority > 100)
     ) {
-      return StandardResponses.validationError(res, null, "Priority must be a number between 1 and 100")
+      return StandardResponses.validationError(
+        res,
+        null,
+        'Priority must be a number between 1 and 100'
+      )
     }
 
     // 验证accountType的有效性
@@ -2726,12 +2830,12 @@ router.post('/claude-console-accounts', authenticateAdmin, async (req, res) => {
     } = req.body
 
     if (!name || !apiUrl || !apiKey) {
-      return StandardResponses.validationError(res, null, "Name, API URL and API Key are required")
+      return StandardResponses.validationError(res, null, 'Name, API URL and API Key are required')
     }
 
     // 验证priority的有效性（1-100）
     if (priority !== undefined && (priority < 1 || priority > 100)) {
-      return StandardResponses.validationError(res, null, "Priority must be between 1 and 100")
+      return StandardResponses.validationError(res, null, 'Priority must be between 1 and 100')
     }
 
     // 验证accountType的有效性
@@ -2743,7 +2847,11 @@ router.post('/claude-console-accounts', authenticateAdmin, async (req, res) => {
 
     // 如果是分组类型，验证groupId
     if (accountType === 'group' && !groupId) {
-      return StandardResponses.validationError(res, null, "Group ID is required for group type accounts")
+      return StandardResponses.validationError(
+        res,
+        null,
+        'Group ID is required for group type accounts'
+      )
     }
 
     const newAccount = await claudeConsoleAccountService.createAccount({
@@ -2792,7 +2900,7 @@ router.put('/claude-console-accounts/:accountId', authenticateAdmin, async (req,
       mappedUpdates.priority !== undefined &&
       (mappedUpdates.priority < 1 || mappedUpdates.priority > 100)
     ) {
-      return StandardResponses.validationError(res, null, "Priority must be between 1 and 100")
+      return StandardResponses.validationError(res, null, 'Priority must be between 1 and 100')
     }
 
     // 验证accountType的有效性
@@ -2807,7 +2915,11 @@ router.put('/claude-console-accounts/:accountId', authenticateAdmin, async (req,
 
     // 如果更新为分组类型，验证groupId
     if (mappedUpdates.accountType === 'group' && !mappedUpdates.groupId) {
-      return StandardResponses.validationError(res, null, "Group ID is required for group type accounts")
+      return StandardResponses.validationError(
+        res,
+        null,
+        'Group ID is required for group type accounts'
+      )
     }
 
     // 获取账户当前信息以处理分组变更
@@ -3150,12 +3262,12 @@ router.post('/ccr-accounts', authenticateAdmin, async (req, res) => {
     } = req.body
 
     if (!name || !apiUrl || !apiKey) {
-      return StandardResponses.validationError(res, null, "Name, API URL and API Key are required")
+      return StandardResponses.validationError(res, null, 'Name, API URL and API Key are required')
     }
 
     // 验证priority的有效性（1-100）
     if (priority !== undefined && (priority < 1 || priority > 100)) {
-      return StandardResponses.validationError(res, null, "Priority must be between 1 and 100")
+      return StandardResponses.validationError(res, null, 'Priority must be between 1 and 100')
     }
 
     // 验证accountType的有效性
@@ -3167,7 +3279,11 @@ router.post('/ccr-accounts', authenticateAdmin, async (req, res) => {
 
     // 如果是分组类型，验证groupId
     if (accountType === 'group' && !groupId) {
-      return StandardResponses.validationError(res, null, "Group ID is required for group type accounts")
+      return StandardResponses.validationError(
+        res,
+        null,
+        'Group ID is required for group type accounts'
+      )
     }
 
     const newAccount = await ccrAccountService.createAccount({
@@ -3214,7 +3330,7 @@ router.put('/ccr-accounts/:accountId', authenticateAdmin, async (req, res) => {
       mappedUpdates.priority !== undefined &&
       (mappedUpdates.priority < 1 || mappedUpdates.priority > 100)
     ) {
-      return StandardResponses.validationError(res, null, "Priority must be between 1 and 100")
+      return StandardResponses.validationError(res, null, 'Priority must be between 1 and 100')
     }
 
     // 验证accountType的有效性
@@ -3229,7 +3345,11 @@ router.put('/ccr-accounts/:accountId', authenticateAdmin, async (req, res) => {
 
     // 如果更新为分组类型，验证groupId
     if (mappedUpdates.accountType === 'group' && !mappedUpdates.groupId) {
-      return StandardResponses.validationError(res, null, "Group ID is required for group type accounts")
+      return StandardResponses.validationError(
+        res,
+        null,
+        'Group ID is required for group type accounts'
+      )
     }
 
     // 获取账户当前信息以处理分组变更
@@ -3551,12 +3671,12 @@ router.post('/bedrock-accounts', authenticateAdmin, async (req, res) => {
     } = req.body
 
     if (!name) {
-      return StandardResponses.validationError(res, null, "Name is required")
+      return StandardResponses.validationError(res, null, 'Name is required')
     }
 
     // 验证priority的有效性（1-100）
     if (priority !== undefined && (priority < 1 || priority > 100)) {
-      return StandardResponses.validationError(res, null, "Priority must be between 1 and 100")
+      return StandardResponses.validationError(res, null, 'Priority must be between 1 and 100')
     }
 
     // 验证accountType的有效性
@@ -3615,7 +3735,7 @@ router.put('/bedrock-accounts/:accountId', authenticateAdmin, async (req, res) =
       mappedUpdates.priority !== undefined &&
       (mappedUpdates.priority < 1 || mappedUpdates.priority > 100)
     ) {
-      return StandardResponses.validationError(res, null, "Priority must be between 1 and 100")
+      return StandardResponses.validationError(res, null, 'Priority must be between 1 and 100')
     }
 
     // 验证accountType的有效性
@@ -3783,7 +3903,7 @@ router.post('/bedrock-accounts/:accountId/test', authenticateAdmin, async (req, 
     const result = await bedrockAccountService.testAccount(accountId)
 
     if (!result.success) {
-      return StandardResponses.internalError(res, error)
+      return StandardResponses.internalError(res, result.error || '测试失败')
     }
 
     logger.success(`🧪 Admin tested Bedrock account: ${accountId} - ${result.data.status}`)
@@ -3844,7 +3964,7 @@ router.post('/gemini-accounts/poll-auth-status', authenticateAdmin, async (req, 
     const { sessionId } = req.body
 
     if (!sessionId) {
-      return StandardResponses.validationError(res, null, "Session ID is required")
+      return StandardResponses.validationError(res, null, 'Session ID is required')
     }
 
     const result = await geminiAccountService.pollAuthorizationStatus(sessionId)
@@ -3867,7 +3987,7 @@ router.post('/gemini-accounts/exchange-code', authenticateAdmin, async (req, res
     const { code, sessionId, proxy: requestProxy } = req.body
 
     if (!code) {
-      return StandardResponses.validationError(res, null, "Authorization code is required")
+      return StandardResponses.validationError(res, null, 'Authorization code is required')
     }
 
     let redirectUri = 'https://codeassist.google.com/authcode'
@@ -4019,7 +4139,7 @@ router.post('/gemini-accounts', authenticateAdmin, async (req, res) => {
 
     // 输入验证
     if (!accountData.name) {
-      return StandardResponses.validationError(res, null, "Account name is required")
+      return StandardResponses.validationError(res, null, 'Account name is required')
     }
 
     // 验证accountType的有效性
@@ -4034,7 +4154,11 @@ router.post('/gemini-accounts', authenticateAdmin, async (req, res) => {
 
     // 如果是分组类型，验证groupId
     if (accountData.accountType === 'group' && !accountData.groupId) {
-      return StandardResponses.validationError(res, null, "Group ID is required for group type accounts")
+      return StandardResponses.validationError(
+        res,
+        null,
+        'Group ID is required for group type accounts'
+      )
     }
 
     const newAccount = await geminiAccountService.createAccount(accountData)
@@ -4068,7 +4192,11 @@ router.put('/gemini-accounts/:accountId', authenticateAdmin, async (req, res) =>
 
     // 如果更新为分组类型，验证groupId
     if (updates.accountType === 'group' && !updates.groupId) {
-      return StandardResponses.validationError(res, null, "Group ID is required for group type accounts")
+      return StandardResponses.validationError(
+        res,
+        null,
+        'Group ID is required for group type accounts'
+      )
     }
 
     // 获取账户当前信息以处理分组变更
@@ -5037,13 +5165,17 @@ router.get('/model-stats', authenticateAdmin, async (req, res) => {
 
       // 确保日期范围有效
       if (start > end) {
-        return StandardResponses.validationError(res, null, "Start date must be before or equal to end date")
+        return StandardResponses.validationError(
+          res,
+          null,
+          'Start date must be before or equal to end date'
+        )
       }
 
       // 限制最大范围为365天
       const daysDiff = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1
       if (daysDiff > 365) {
-        return StandardResponses.validationError(res, null, "Date range cannot exceed 365 days")
+        return StandardResponses.validationError(res, null, 'Date range cannot exceed 365 days')
       }
 
       // 生成日期范围内所有日期的搜索模式
@@ -5250,7 +5382,7 @@ router.get('/usage-trend', authenticateAdmin, async (req, res) => {
       // 确保时间范围不超过24小时
       const timeDiff = endTime - startTime
       if (timeDiff > 24 * 60 * 60 * 1000) {
-        return StandardResponses.validationError(res, null, "小时粒度查询时间范围不能超过24小时")
+        return StandardResponses.validationError(res, null, '小时粒度查询时间范围不能超过24小时')
       }
 
       // 按小时遍历
@@ -5502,13 +5634,17 @@ router.get('/api-keys/:keyId/model-stats', authenticateAdmin, async (req, res) =
 
       // 确保日期范围有效
       if (start > end) {
-        return StandardResponses.validationError(res, null, "Start date must be before or equal to end date")
+        return StandardResponses.validationError(
+          res,
+          null,
+          'Start date must be before or equal to end date'
+        )
       }
 
       // 限制最大范围为365天
       const daysDiff = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1
       if (daysDiff > 365) {
-        return StandardResponses.validationError(res, null, "Date range cannot exceed 365 days")
+        return StandardResponses.validationError(res, null, 'Date range cannot exceed 365 days')
       }
 
       // 生成日期范围内所有日期的搜索模式
@@ -6956,17 +7092,21 @@ router.put('/oem-settings', authenticateAdmin, async (req, res) => {
 
     // 验证输入
     if (!siteName || typeof siteName !== 'string' || siteName.trim().length === 0) {
-      return StandardResponses.validationError(res, null, "Site name is required")
+      return StandardResponses.validationError(res, null, 'Site name is required')
     }
 
     if (siteName.length > 100) {
-      return StandardResponses.validationError(res, null, "Site name must be less than 100 characters")
+      return StandardResponses.validationError(
+        res,
+        null,
+        'Site name must be less than 100 characters'
+      )
     }
 
     // 验证图标数据大小（如果是base64）
     if (siteIconData && siteIconData.length > 500000) {
       // 约375KB
-      return StandardResponses.validationError(res, null, "Icon file must be less than 350KB")
+      return StandardResponses.validationError(res, null, 'Icon file must be less than 350KB')
     }
 
     // 验证图标URL（如果提供）
@@ -6975,7 +7115,7 @@ router.put('/oem-settings', authenticateAdmin, async (req, res) => {
       try {
         new URL(siteIcon)
       } catch (err) {
-        return StandardResponses.validationError(res, null, "Invalid icon URL format")
+        return StandardResponses.validationError(res, null, 'Invalid icon URL format')
       }
     }
 
@@ -7457,7 +7597,11 @@ router.put('/openai-accounts/:id', authenticateAdmin, async (req, res) => {
 
     // 如果更新为分组类型，验证groupId
     if (mappedUpdates.accountType === 'group' && !mappedUpdates.groupId) {
-      return StandardResponses.validationError(res, null, "Group ID is required for group type accounts")
+      return StandardResponses.validationError(
+        res,
+        null,
+        'Group ID is required for group type accounts'
+      )
     }
 
     // 获取账户当前信息以处理分组变更
@@ -8556,12 +8700,12 @@ router.post('/droid-accounts/exchange-code', authenticateAdmin, async (req, res)
   const { sessionId, proxy } = req.body || {}
   try {
     if (!sessionId) {
-      return StandardResponses.validationError(res, null, "Session ID is required")
+      return StandardResponses.validationError(res, null, 'Session ID is required')
     }
 
     const oauthSession = await redis.getOAuthSession(sessionId)
     if (!oauthSession) {
-      return StandardResponses.validationError(res, null, "Invalid or expired OAuth session")
+      return StandardResponses.validationError(res, null, 'Invalid or expired OAuth session')
     }
 
     if (oauthSession.expiresAt && new Date() > new Date(oauthSession.expiresAt)) {
@@ -8573,7 +8717,11 @@ router.post('/droid-accounts/exchange-code', authenticateAdmin, async (req, res)
 
     if (!oauthSession.deviceCode) {
       await redis.deleteOAuthSession(sessionId)
-      return StandardResponses.validationError(res, null, "OAuth session missing device code, please retry")
+      return StandardResponses.validationError(
+        res,
+        null,
+        'OAuth session missing device code, please retry'
+      )
     }
 
     const proxyConfig = proxy || oauthSession.proxy || null
@@ -8782,7 +8930,7 @@ router.post('/droid-accounts', authenticateAdmin, async (req, res) => {
         } catch (cleanupError) {
           logger.error(`Failed to cleanup Droid account ${account.id}:`, cleanupError)
         }
-        return StandardResponses.internalError(res, error)
+        return StandardResponses.internalError(res, groupError || '分组设置失败')
       }
     }
 
@@ -8824,7 +8972,11 @@ router.put('/droid-accounts/:id', authenticateAdmin, async (req, res) => {
     const { accountType: rawAccountType, groupId, groupIds } = mappedUpdates
 
     if (rawAccountType && !['shared', 'dedicated', 'group'].includes(rawAccountType)) {
-      return StandardResponses.validationError(res, null, "账户类型必须是 shared、dedicated 或 group")
+      return StandardResponses.validationError(
+        res,
+        null,
+        '账户类型必须是 shared、dedicated 或 group'
+      )
     }
 
     if (
@@ -8832,7 +8984,7 @@ router.put('/droid-accounts/:id', authenticateAdmin, async (req, res) => {
       (!groupId || typeof groupId !== 'string' || !groupId.trim()) &&
       (!Array.isArray(groupIds) || groupIds.length === 0)
     ) {
-      return StandardResponses.validationError(res, null, "分组调度账户必须至少选择一个分组")
+      return StandardResponses.validationError(res, null, '分组调度账户必须至少选择一个分组')
     }
 
     const currentAccount = await droidAccountService.getAccount(id)
@@ -8872,7 +9024,7 @@ router.put('/droid-accounts/:id', authenticateAdmin, async (req, res) => {
       }
     } catch (groupError) {
       logger.error(`Failed to update Droid account ${id} groups:`, groupError)
-      return StandardResponses.internalError(res, error)
+      return StandardResponses.internalError(res, groupError || '分组更新失败')
     }
 
     if (targetAccountType === 'group') {

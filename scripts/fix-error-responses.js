@@ -58,21 +58,21 @@ const errorPatterns = [
 // 添加导入语句
 function addImportStatement(content) {
   const importStatement = "const { StandardResponses } = require('../utils/standardResponses')\n"
-  
+
   // 检查是否已经有导入
   if (content.includes('standardResponses')) {
     return content
   }
-  
+
   // 在其他require语句后添加
   const requirePattern = /(const .+ = require\(.+\)\n)+/
   const match = content.match(requirePattern)
-  
+
   if (match) {
     const lastRequireIndex = match.index + match[0].length
     return content.slice(0, lastRequireIndex) + importStatement + content.slice(lastRequireIndex)
   }
-  
+
   // 如果没有找到require，添加到文件开头
   return importStatement + content
 }
@@ -80,23 +80,25 @@ function addImportStatement(content) {
 // 处理单个文件
 function processFile(filePath) {
   console.log(`Processing: ${filePath}`)
-  
+
   const fullPath = path.join(process.cwd(), filePath)
-  
+
   if (!fs.existsSync(fullPath)) {
     console.log(`  ⚠️  File not found: ${filePath}`)
     return
   }
-  
+
   let content = fs.readFileSync(fullPath, 'utf8')
   let modified = false
   let needsImport = false
-  
+
   // 应用所有模式
   errorPatterns.forEach(({ pattern, replacement, needsImport: needsImp }) => {
     const matches = content.match(pattern)
     if (matches) {
-      console.log(`  Found ${matches.length} matches for pattern: ${pattern.source.substring(0, 50)}...`)
+      console.log(
+        `  Found ${matches.length} matches for pattern: ${pattern.source.substring(0, 50)}...`
+      )
       content = content.replace(pattern, replacement)
       modified = true
       if (needsImp) {
@@ -104,19 +106,19 @@ function processFile(filePath) {
       }
     }
   })
-  
+
   // 如果有修改且需要导入
   if (modified && needsImport) {
     content = addImportStatement(content)
   }
-  
+
   // 保存文件
   if (modified) {
     // 创建备份
     const backupPath = `${fullPath}.backup`
     fs.writeFileSync(backupPath, fs.readFileSync(fullPath))
     console.log(`  ✅ Created backup: ${backupPath}`)
-    
+
     // 写入修改后的内容
     fs.writeFileSync(fullPath, content)
     console.log(`  ✅ Updated: ${filePath}`)
@@ -128,9 +130,9 @@ function processFile(filePath) {
 // 主函数
 function main() {
   console.log('🔧 Starting error response standardization...\n')
-  
+
   filesToUpdate.forEach(processFile)
-  
+
   console.log('\n✨ Error response standardization complete!')
   console.log('\n📝 Next steps:')
   console.log('1. Review the changes in each file')
