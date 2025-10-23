@@ -535,7 +535,8 @@ class Application {
         logger.info(`📊 Metrics: http://${config.server.host}:${config.server.port}/metrics`)
       })
 
-      const serverTimeout = 600000 // 默认10分钟
+      // 优化: 服务器超时与请求超时保持一致，避免连接长时间挂起
+      const serverTimeout = config.requestTimeout || 120000 // 默认2分钟
       this.server.timeout = serverTimeout
       this.server.keepAliveTimeout = serverTimeout + 5000 // keepAlive 稍长一点
       logger.info(`⏱️  Server timeout set to ${serverTimeout}ms (${serverTimeout / 1000}s)`)

@@ -273,7 +273,7 @@ async function sendGeminiRequest({
       'Content-Type': 'application/json'
     },
     data: requestBody,
-    timeout: config.requestTimeout || 600000
+    timeout: config.requestTimeout || 120000
   }
 
   // 添加代理配置
@@ -384,7 +384,7 @@ async function getAvailableModels(accessToken, proxy, projectId, location = 'us-
     headers: {
       Authorization: `Bearer ${accessToken}`
     },
-    timeout: config.requestTimeout || 600000
+    timeout: config.requestTimeout || 120000
   }
 
   const proxyAgent = createProxyAgent(proxy)
@@ -486,7 +486,7 @@ async function countTokens({
       'X-Goog-User-Project': projectId || undefined
     },
     data: requestBody,
-    timeout: config.requestTimeout || 600000
+    timeout: config.requestTimeout || 120000
   }
 
   // 添加代理配置

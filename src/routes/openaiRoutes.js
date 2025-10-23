@@ -326,7 +326,7 @@ const handleResponses = async (req, res) => {
     // 配置请求选项
     const axiosConfig = {
       headers,
-      timeout: config.requestTimeout || 600000,
+      timeout: config.requestTimeout || 120000,
       validateStatus: () => true
     }
 

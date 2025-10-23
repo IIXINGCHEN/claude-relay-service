@@ -71,7 +71,7 @@ async function handleAzureOpenAIRequest({
       url: requestUrl,
       headers: requestHeaders,
       data: processedBody,
-      timeout: config.requestTimeout || 600000,
+      timeout: config.requestTimeout || 120000,
       validateStatus: () => true,
       // 添加连接保活选项
       keepAlive: true,
@@ -186,9 +186,9 @@ async function handleAzureOpenAIRequest({
     } else if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
       logger.error('🚨 Azure OpenAI Request Timeout', {
         ...errorDetails,
-        timeoutMs: 600000,
+        timeoutMs: config.requestTimeout || 120000,
         suggestion:
-          'Request exceeded 10-minute timeout. Consider reducing model complexity or check if Azure service is responding slowly.'
+          'Request exceeded timeout limit. Consider reducing model complexity or check if Azure service is responding slowly.'
       })
     } else if (
       error.code === 'CERT_AUTHORITY_INVALID' ||

@@ -121,7 +121,7 @@ class ClaudeConsoleRelayService {
           'User-Agent': userAgent,
           ...filteredHeaders
         },
-        timeout: config.requestTimeout || 600000,
+        timeout: config.requestTimeout || 120000,
         signal: abortController.signal,
         validateStatus: () => true // 接受所有状态码
       }
@@ -400,7 +400,7 @@ class ClaudeConsoleRelayService {
           'User-Agent': userAgent,
           ...filteredHeaders
         },
-        timeout: config.requestTimeout || 600000,
+        timeout: config.requestTimeout || 120000,
         responseType: 'stream',
         validateStatus: () => true // 接受所有状态码
       }

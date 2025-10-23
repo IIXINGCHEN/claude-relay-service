@@ -1,5 +1,6 @@
 const https = require('https')
 const axios = require('axios')
+const config = require('../../config/config')
 const ProxyHelper = require('../utils/proxyHelper')
 const droidScheduler = require('./droidScheduler')
 const droidAccountService = require('./droidAccountService')
@@ -401,7 +402,7 @@ class DroidRelayService {
           url: apiUrl,
           headers,
           data: processedBody,
-          timeout: 600 * 1000, // 10分钟超时
+          timeout: config.requestTimeout || 120000, // 请求超时配置
           responseType: 'json',
           ...(proxyAgent && {
             httpAgent: proxyAgent,
@@ -668,7 +669,7 @@ class DroidRelayService {
         method: 'POST',
         headers: requestHeaders,
         agent: proxyAgent,
-        timeout: 600 * 1000
+        timeout: 120000
       }
 
       // 📊 记录流式请求详情

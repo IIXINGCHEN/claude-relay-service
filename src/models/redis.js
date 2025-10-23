@@ -67,7 +67,7 @@ class RedisClient {
         maxRetriesPerRequest: config.redis.maxRetriesPerRequest,
         lazyConnect: config.redis.lazyConnect,
         tls: config.redis.enableTLS ? {} : false,
-        // 添加重连策略
+        // 优化：增加重连策略
         retryStrategy: (times) => {
           if (times > 10) {
             logger.error('Redis: Max reconnection attempts reached')
@@ -77,10 +77,21 @@ class RedisClient {
           logger.info(`Redis: Reconnecting in ${delay}ms (attempt ${times})`)
           return delay
         },
-        // 添加连接超时
-        connectTimeout: 10000,
+        // 优化：连接超时
+        connectTimeout: config.redis.connectTimeout || 10000,
+        // 优化：命令超时（从5秒增加到15秒）
+        commandTimeout: config.redis.commandTimeout || 15000,
         // 启用离线队列
-        enableOfflineQueue: true
+        enableOfflineQueue: true,
+        // 优化：连接池配置
+        enableReadyCheck: true,
+        // 优化：保持连接活跃
+        keepAlive: 30000,
+        // 优化：Socket选项
+        family: 4, // IPv4优先
+        // 优化：自动pipeline（批量命令）
+        enableAutoPipelining: true,
+        autoPipeliningIgnoredCommands: ['ping']
       })
 
       this.client.on('connect', () => {

@@ -35,7 +35,7 @@ function extractCacheCreationTokens(usageData) {
 
 class OpenAIResponsesRelayService {
   constructor() {
-    this.defaultTimeout = config.requestTimeout || 600000
+    this.defaultTimeout = config.requestTimeout || 120000
   }
 
   // 处理请求转发

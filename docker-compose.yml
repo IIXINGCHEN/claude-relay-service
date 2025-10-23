@@ -14,12 +14,21 @@ services:
       dockerfile: Dockerfile
       args:
         NODE_IMAGE_REGISTRY: ${NODE_IMAGE_REGISTRY:-}
-        NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmjs.org}
+        NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmmirror.com}
     ports:
       - "${BIND_HOST:-0.0.0.0}:${PORT:-13006}:3000"
     volumes:
       - ./logs:/app/logs
       - ./data:/app/data
+    # 🎯 资源限制（防止容器占用过多资源）
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
     environment:
       - NODE_ENV=production
       - PORT=3000
@@ -42,16 +51,20 @@ services:
       - ADMIN_USERNAME=${ADMIN_USERNAME:-}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-}
 
-      - DEFAULT_PROXY_TIMEOUT=${DEFAULT_PROXY_TIMEOUT:-60000}
+      # 优化: 从10分钟降至2分钟，提升响应速度
+      - DEFAULT_PROXY_TIMEOUT=${DEFAULT_PROXY_TIMEOUT:-120000}
+      - REQUEST_TIMEOUT=${REQUEST_TIMEOUT:-120000}
       - MAX_PROXY_RETRIES=${MAX_PROXY_RETRIES:-3}
 
       - DEFAULT_TOKEN_LIMIT=${DEFAULT_TOKEN_LIMIT:-1000000}
 
-      - LOG_LEVEL=${LOG_LEVEL:-info}
+      # 优化: 生产环境使用warn级别减少I/O开销
+      - LOG_LEVEL=${LOG_LEVEL:-warn}
       - LOG_MAX_SIZE=${LOG_MAX_SIZE:-10m}
       - LOG_MAX_FILES=${LOG_MAX_FILES:-5}
 
-      - CLEANUP_INTERVAL=${CLEANUP_INTERVAL:-3600000}
+      # 优化: 从1小时降至30分钟，避免内存累积
+      - CLEANUP_INTERVAL=${CLEANUP_INTERVAL:-1800000}
       - TOKEN_USAGE_RETENTION=${TOKEN_USAGE_RETENTION:-2592000000}
       - HEALTH_CHECK_INTERVAL=${HEALTH_CHECK_INTERVAL:-60000}
       - TIMEZONE_OFFSET=${TIMEZONE_OFFSET:-8}
@@ -72,8 +85,9 @@ services:
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
       interval: 30s
-      timeout: 10s
+      timeout: 5s
       retries: 3
+      start_period: 40s
 
   # 📊 Redis Database
   redis:
@@ -83,14 +97,41 @@ services:
       - "6379"
     volumes:
       - ./redis_data:/data
-    command: redis-server --save 60 1 --appendonly yes --appendfsync everysec
+    # 🎯 Redis资源限制
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+    # 优化持久化策略：减少磁盘I/O，提升性能
+    # save 900 1: 15分钟内至少1个key变化则保存
+    # save 300 10: 5分钟内至少10个key变化则保存  
+    # save 60 10000: 1分钟内至少10000个key变化则保存
+    # appendfsync everysec: 每秒同步AOF，平衡性能和安全性
+    # maxmemory-policy: 内存满时移除带过期时间的key(LRU)
+    command: >
+      redis-server
+      --save 900 1
+      --save 300 10
+      --save 60 10000
+      --appendonly yes
+      --appendfsync everysec
+      --maxmemory 384mb
+      --maxmemory-policy allkeys-lru
+      --tcp-backlog 511
+      --timeout 300
+      --tcp-keepalive 60
     networks:
       - claude-relay-network
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 30s
-      timeout: 10s
+      timeout: 5s
       retries: 3
+      start_period: 20s
 
 volumes:
   prometheus_data:

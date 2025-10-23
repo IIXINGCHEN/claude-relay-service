@@ -3,7 +3,7 @@
 
 # Build arguments for flexibility
 ARG NODE_IMAGE_REGISTRY=""
-ARG NPM_REGISTRY="https://registry.npmjs.org"
+ARG NPM_REGISTRY="https://registry.npmmirror.com"
 
 # Base image - can be overridden for offline deployment
 FROM ${NODE_IMAGE_REGISTRY}node:20-alpine
@@ -13,8 +13,10 @@ LABEL maintainer="claude-relay-service@example.com"
 LABEL description="Claude Code API Relay Service"
 LABEL version="1.1.183"
 
-# 🔧 安装系统依赖
-RUN apk add --no-cache \
+# 🔧 安装系统依赖 (使用国内镜像源加速)
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories && \
+    apk update --no-cache && \
+    apk add --no-cache \
     curl \
     dumb-init \
     sed \
