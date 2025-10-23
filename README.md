@@ -40,9 +40,9 @@
 - 🔄 **统一配置**: 单一Dockerfile和Docker Compose，环境变量驱动
 - 📚 **文档重组**: 结构化部署文档，新增迁移指南
 
-**如果你已在使用旧版本，请查看 [迁移指南](./MIGRATION_GUIDE.md) 了解如何升级。**
+**如果你已在使用旧版本，请查看 [迁移指南](./docs/guides/MIGRATION_GUIDE.md) 了解如何升级。**
 
-**优化详情：** [优化总结报告](./OPTIMIZATION_SUMMARY.md)
+**优化详情：** [优化总结报告](./docs/guides/OPTIMIZATION_SUMMARY.md)
 
 ---
 

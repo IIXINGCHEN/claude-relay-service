@@ -77,8 +77,6 @@ If you have any of these concerns, this project might be suitable for you.
 
 ## 🚀 Core Features
 
-> 📸 **[Click to view interface preview](docs/preview.md)** - See detailed screenshots of the Web management interface
-
 ### Basic Features
 - ✅ **Multi-account Management**: Add multiple Claude accounts for automatic rotation
 - ✅ **Custom API Keys**: Assign independent keys to each person
