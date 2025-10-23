@@ -1,0 +1,66 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Node
+node_modules
+npm-debug.log
+yarn-error.log
+.npm
+
+# 环境变量
+.env
+.env.local
+.env.*.local
+
+# 日志文件
+logs
+*.log
+
+# 运行时数据
+data
+temp
+redis_data
+
+# 测试
+coverage
+.nyc_output
+*.test.js
+*.spec.js
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
+
+# 构建产物（前端构建文件需要包含）
+web/admin-spa/node_modules
+
+# 文档
+*.md
+!README.md
+!README_EN.md
+docs
+
+# CI/CD
+.github
+.gitlab-ci.yml
+
+# 开发工具
+nodemon.json
+.eslintrc
+.prettierrc
+.editorconfig
+
+# 备份文件
+*.bak
+*.backup
+*.old
+
+# Factory AI
+.factory
+.droidshield-ignore

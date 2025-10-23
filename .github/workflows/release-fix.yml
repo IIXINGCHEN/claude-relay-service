@@ -1,0 +1,83 @@
+name: Release (Fixed)
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create minimal release assets
+        run: |
+          # Create release directory with essential files only
+          mkdir -p dist
+          
+          # Create a minimal release info file
+          cat > dist/release-info.json << EOF
+          {
+            "version": "${GITHUB_REF_NAME:-manual}",
+            "date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "commit": "${GITHUB_SHA}"
+          }
+          EOF
+          
+          # Create a simple README for the release
+          cat > dist/RELEASE.md << EOF
+          # Claude Relay Service Release
+          
+          Version: ${GITHUB_REF_NAME:-manual}
+          Commit: ${GITHUB_SHA}
+          
+          ## Installation
+          
+          Clone the repository and follow the setup instructions:
+          
+          \`\`\`bash
+          git clone https://github.com/IIXINGCHEN/claude-relay-service.git
+          cd claude-relay-service
+          npm install
+          cp .env.example .env
+          # Configure your .env file
+          npm start
+          \`\`\`
+          
+          ## Changes
+          See the commit history for detailed changes.
+          EOF
+
+      - name: Create Release with gh CLI
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Use GitHub CLI as an alternative to softprops/action-gh-release
+          VERSION="${GITHUB_REF_NAME:-v1.0.0}"
+          
+          # Create release using gh CLI (more reliable for large repos)
+          gh release create "$VERSION" \
+            --title "Release $VERSION" \
+            --notes "## Release $VERSION
+          
+          ### Highlights
+          - Comprehensive security and quality improvements
+          - Enhanced error handling and stability
+          - Improved Redis connection management
+          - Added testing framework
+          - Updated dependencies
+          
+          ### Installation
+          See repository README for installation instructions.
+          
+          ### Security
+          Review SECURITY.md for security best practices." \
+            dist/release-info.json \
+            dist/RELEASE.md \
+            --latest

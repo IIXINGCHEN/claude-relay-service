@@ -1,0 +1,17 @@
+#!/bin/bash
+
+# Pre-commit hook to check for secrets
+# Install: chmod +x .git-hooks/pre-commit && ln -sf ../../.git-hooks/pre-commit .git/hooks/pre-commit
+
+echo "🔒 Running security checks..."
+echo ""
+
+# Run the security check script
+if [ -f "./scripts/check-secrets.sh" ]; then
+    bash ./scripts/check-secrets.sh
+    exit $?
+else
+    echo "⚠️  Warning: Security check script not found"
+    echo "   Expected: ./scripts/check-secrets.sh"
+    exit 0
+fi

@@ -1,0 +1,125 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag version to release'
+        required: true
+        default: 'v1.0.0'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --production
+
+      - name: Create Release Archive
+        run: |
+          # Create a clean release package
+          mkdir -p release
+          
+          # Copy essential files only (avoid large directories)
+          cp -r src release/
+          cp -r config release/
+          cp -r scripts release/
+          cp -r cli release/
+          cp package*.json release/
+          cp *.md release/ 2>/dev/null || true
+          cp LICENSE release/ 2>/dev/null || true
+          cp .env.example release/
+          cp .env.production release/
+          cp docker-compose.yml release/
+          cp Dockerfile release/
+          
+          # Create archives
+          tar -czf claude-relay-service.tar.gz -C release .
+          zip -r claude-relay-service.zip release/*
+          
+          # Calculate checksums
+          sha256sum claude-relay-service.tar.gz > checksums.txt
+          sha256sum claude-relay-service.zip >> checksums.txt
+
+      - name: Get Release Version
+        id: get_version
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "version=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Generate Release Notes
+        id: release_notes
+        run: |
+          cat << EOF > release_notes.md
+          ## Claude Relay Service Release ${{ steps.get_version.outputs.version }}
+          
+          ### 🚀 What's New
+          - Comprehensive security improvements
+          - Enhanced error handling and logging
+          - Improved Redis connection stability
+          - Added Jest testing framework
+          - Updated dependencies for security
+          
+          ### 📦 Installation
+          
+          \`\`\`bash
+          # Download and extract
+          tar -xzf claude-relay-service.tar.gz
+          
+          # Install dependencies
+          npm install --production
+          
+          # Configure environment
+          cp .env.example .env
+          # Edit .env with your settings
+          
+          # Start the service
+          npm start
+          \`\`\`
+          
+          ### 🔐 Security Notes
+          - Generate strong keys for JWT_SECRET and ENCRYPTION_KEY
+          - Review SECURITY.md for best practices
+          - Use .env.production template for production deployments
+          
+          ### 📝 Checksums
+          See \`checksums.txt\` for file integrity verification.
+          EOF
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.get_version.outputs.version }}
+          name: Release ${{ steps.get_version.outputs.version }}
+          body_path: release_notes.md
+          draft: false
+          prerelease: false
+          files: |
+            claude-relay-service.tar.gz
+            claude-relay-service.zip
+            checksums.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Clean up
+        if: always()
+        run: |
+          rm -rf release
+          rm -f *.tar.gz *.zip checksums.txt release_notes.md

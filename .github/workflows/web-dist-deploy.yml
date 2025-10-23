@@ -1,0 +1,76 @@
+name: Deploy Web Dist (Alternative)
+
+on:
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      version:
+        description: 'Version number'
+        required: false
+        type: string
+
+jobs:
+  deploy-web:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      
+    steps:
+      - name: Checkout main branch
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: main
+          
+      - name: Checkout web-dist branch
+        uses: actions/checkout@v4
+        with:
+          ref: web-dist
+          path: web-dist
+          
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: main/web/admin-spa/package-lock.json
+          
+      - name: Build frontend
+        run: |
+          cd main/web/admin-spa
+          npm ci --prefer-offline --no-audit
+          npm run build
+          
+      - name: Deploy to web-dist branch
+        run: |
+          # Clear web-dist directory (except .git)
+          cd web-dist
+          find . -maxdepth 1 ! -name '.git' ! -name '.' ! -name '..' -exec rm -rf {} \;
+          
+          # Copy build files
+          cp -r ../main/web/admin-spa/dist/* .
+          
+          # Create README
+          cat > README.md << EOF
+          # Claude Relay Service - Web Frontend Build
+          
+          This branch contains the pre-built frontend assets.
+          
+          **DO NOT EDIT FILES IN THIS BRANCH DIRECTLY**
+          
+          Version: ${{ inputs.version || 'latest' }}
+          Build Date: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          EOF
+          
+          # Configure git
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          
+          # Commit and push
+          git add -A
+          if git diff --staged --quiet; then
+            echo "No changes to deploy"
+          else
+            git commit -m "chore: update frontend build ${{ inputs.version && format('for {0}', inputs.version) || '' }} [skip ci]"
+            git push origin web-dist
+          fi
